@@ -64,11 +64,11 @@ body:
   - type: dropdown
     id: legado
     attributes:
-      label: Existe no código legado (form-bot)?
+      label: A tela está mapeada na skill sghx?
       options:
-        - Sim, migrar como está
-        - Sim, mas precisa ser refeito / melhorado
-        - Não, é novo
+        - Sim, totalmente
+        - Parcialmente
+        - Não, precisa mapear antes
     validations:
       required: true
   - type: dropdown
@@ -85,4 +85,4 @@ body:
     id: notas
     attributes:
       label: Notas técnicas (opcional)
-      description: Seletores DOM, funções do legado, dependências com outras issues (#123), riscos.
+      description: Seções da skill sghx (ex. MAPA.md §4.8), seletores, dependências com outras issues (#123), riscos.

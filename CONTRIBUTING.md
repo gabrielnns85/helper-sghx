@@ -34,6 +34,17 @@ Toda funcionalidade, correção ou refatoração segue **esta ordem**, sem pular
 - Branch por issue: `feat/<n>-descricao`, `fix/<n>-descricao`, `chore/<n>-descricao`.
 - Commits no padrão Conventional Commits (`feat:`, `fix:`, `test:`, `chore:`, `docs:`, `refactor:`).
 
-## Código legado
+## Fonte de referência do SGHx: skill `sghx`
 
-O *PEP Form Bot* (v1.5.9.4) fica em `legacy/` **apenas localmente** (fora do git). Use-o como referência de seletores DOM e regras de negócio; não copie em bloco — migre função por função, com testes.
+**Não usar o código legado** (*PEP Form Bot*, em `legacy/`, fora do git): ele está desatualizado e não deve ser copiado nem consultado como referência de implementação.
+
+A referência oficial de telas, seletores, view-models KnockoutJS, endpoints, enums e catálogos é a **skill `sghx`** (`~/.claude/skills/sghx`):
+
+- `SKILL.md`: regras de segurança e mapa rápido
+- `referencia/MAPA.md`: login, fila, consulta/SOAP, Ferramentas do SOAP, atestado, procedimentos, lateralidade de RX
+- `referencia/mapa.json`, `catalogo_procedimentos.csv`, `medicamentos_catalogo.csv`, `PLO_MEDICAMENTOS.md`, `LEITO_OBSERVACAO.md`, `CLASSIFICACAO_RISCO.md`
+- `news2/news2_sghx.js`: réplica validada do NEWS2
+
+Se uma tela necessária não estiver mapeada na skill, **mapeie primeiro na skill** e só depois implemente na extensão.
+
+Para fixtures de teste, use apenas o paciente de teste da skill ou dados sintéticos/pseudonimizados — nunca HTML com dados reais.
