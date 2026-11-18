@@ -9,6 +9,7 @@ Extensão de navegador (Chrome/Edge, Manifest V3) que auxilia o médico no PEP *
 - **Issues** são a fonte da verdade. Use os templates: ✨ Feature, 🐛 Bug, 🔧 Tarefa técnica.
 - **Milestone `MVP`** agrupa o que é essencial para a primeira versão utilizável.
 - Prioridades: `priority:P0` (MVP) · `priority:P1` (logo após) · `priority:P2` (futuro).
+- **TDD obrigatório:** testes unitários → código → integração → PR. Detalhes em [CONTRIBUTING.md](CONTRIBUTING.md).
 - Cada PR fecha uma issue (`Closes #N`) e segue o checklist do template.
 
 ## Privacidade (LGPD)

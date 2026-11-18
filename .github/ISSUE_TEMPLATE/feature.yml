@@ -26,7 +26,7 @@ body:
     id: criterios
     attributes:
       label: Critérios de aceite
-      description: Como sabemos que está pronto? Uma linha por critério.
+      description: Como sabemos que está pronto? Uma linha por critério — cada critério vira pelo menos um teste unitário.
       value: |
         - [ ] 
         - [ ] 
@@ -71,6 +71,16 @@ body:
         - Não, é novo
     validations:
       required: true
+  - type: dropdown
+    id: fase
+    attributes:
+      label: Fase
+      options:
+        - F1 – MVP com texto fixo
+        - F2 – Lista de possibilidades
+        - F3 – Configuração
+        - F4 – Botões de atalho
+        - Não se aplica
   - type: textarea
     id: notas
     attributes:
