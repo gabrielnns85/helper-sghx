@@ -1,0 +1,78 @@
+name: ✨ Feature
+description: Nova funcionalidade ou melhoria de uma existente
+title: "[Feature] "
+labels: ["type:feature", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Repositório público.** Não cole nomes, CPF, Cartão SUS, prontuário ou qualquer dado de paciente, nem senhas. Use dados fictícios.
+  - type: textarea
+    id: problema
+    attributes:
+      label: Problema / contexto
+      description: Qual dor do atendimento isso resolve? Em que tela do sistema acontece?
+      placeholder: "Hoje, para prescrever o kit de dor lombar, preciso de 12 cliques na tela de Prescrição..."
+    validations:
+      required: true
+  - type: textarea
+    id: proposta
+    attributes:
+      label: Proposta
+      description: O que a extensão deve fazer?
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Critérios de aceite
+      description: Como sabemos que está pronto? Uma linha por critério.
+      value: |
+        - [ ] 
+        - [ ] 
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Área
+      multiple: true
+      options:
+        - Painel / UI
+        - Fila de atendimento
+        - Dados do paciente / Histórico
+        - SOAP / Consulta
+        - Prescrição
+        - Procedimentos
+        - Exames (Lab / RX)
+        - Documentos (Atestado / CAT / Encaminhamento)
+        - Biomega / Laudos
+        - Inspetor DOM
+        - Infra / Build / Arquitetura
+    validations:
+      required: true
+  - type: dropdown
+    id: prioridade
+    attributes:
+      label: Prioridade
+      options:
+        - P0 – Essencial para o MVP
+        - P1 – Importante, logo após o MVP
+        - P2 – Desejável / futuro
+    validations:
+      required: true
+  - type: dropdown
+    id: legado
+    attributes:
+      label: Existe no código legado (form-bot)?
+      options:
+        - Sim, migrar como está
+        - Sim, mas precisa ser refeito / melhorado
+        - Não, é novo
+    validations:
+      required: true
+  - type: textarea
+    id: notas
+    attributes:
+      label: Notas técnicas (opcional)
+      description: Seletores DOM, funções do legado, dependências com outras issues (#123), riscos.

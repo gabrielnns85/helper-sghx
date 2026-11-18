@@ -1,0 +1,59 @@
+name: 🐛 Bug
+description: Algo não funciona como deveria
+title: "[Bug] "
+labels: ["type:bug", "status:triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ⚠️ **Repositório público.** Antes de anexar print ou log, **apague/tarje dados de paciente** (nome, CPF, SUS, prontuário, endereço) e credenciais.
+  - type: textarea
+    id: descricao
+    attributes:
+      label: O que aconteceu?
+    validations:
+      required: true
+  - type: textarea
+    id: esperado
+    attributes:
+      label: O que era esperado?
+    validations:
+      required: true
+  - type: textarea
+    id: passos
+    attributes:
+      label: Passos para reproduzir
+      value: |
+        1. Tela: 
+        2. Ação: 
+        3. Resultado: 
+    validations:
+      required: true
+  - type: dropdown
+    id: severidade
+    attributes:
+      label: Severidade
+      options:
+        - Crítico – preenche/salva dado clínico errado
+        - Alto – bloqueia uma funcionalidade
+        - Médio – tem contorno
+        - Baixo – cosmético
+    validations:
+      required: true
+  - type: input
+    id: versao
+    attributes:
+      label: Versão da extensão
+      placeholder: "ex: 0.1.0"
+    validations:
+      required: true
+  - type: input
+    id: navegador
+    attributes:
+      label: Navegador
+      placeholder: "ex: Chrome 131 / Edge 131 no Windows 10"
+  - type: textarea
+    id: logs
+    attributes:
+      label: Console / logs (sem dados de paciente)
+      render: text

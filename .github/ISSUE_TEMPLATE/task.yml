@@ -1,0 +1,24 @@
+name: 🔧 Tarefa técnica
+description: Refatoração, build, testes, documentação, infraestrutura
+title: "[Task] "
+labels: ["type:task", "status:triage"]
+body:
+  - type: textarea
+    id: objetivo
+    attributes:
+      label: Objetivo
+    validations:
+      required: true
+  - type: textarea
+    id: escopo
+    attributes:
+      label: Escopo / checklist
+      value: |
+        - [ ] 
+    validations:
+      required: true
+  - type: textarea
+    id: dependencias
+    attributes:
+      label: Bloqueia / depende de
+      placeholder: "Bloqueia #12, depende de #3"

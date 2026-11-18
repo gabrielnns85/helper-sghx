@@ -1,0 +1,16 @@
+# macOS
+.DS_Store
+
+# Código legado (referência local; não versionado por enquanto)
+legacy/
+
+# Artefatos de build
+dist/
+releases/
+*.zip
+node_modules/
+
+# Nunca versionar dados reais de paciente ou credenciais
+*.env
+.env*
+samples/real/
