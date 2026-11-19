@@ -26,7 +26,7 @@ body:
     id: criterios
     attributes:
       label: Critérios de aceite
-      description: Como sabemos que está pronto? Uma linha por critério.
+      description: Como sabemos que está pronto? Uma linha por critério — cada critério vira pelo menos um teste unitário.
       value: |
         - [ ] 
         - [ ] 
@@ -64,15 +64,25 @@ body:
   - type: dropdown
     id: legado
     attributes:
-      label: Existe no código legado (form-bot)?
+      label: A tela está mapeada na skill sghx?
       options:
-        - Sim, migrar como está
-        - Sim, mas precisa ser refeito / melhorado
-        - Não, é novo
+        - Sim, totalmente
+        - Parcialmente
+        - Não, precisa mapear antes
     validations:
       required: true
+  - type: dropdown
+    id: fase
+    attributes:
+      label: Fase
+      options:
+        - F1 – MVP com texto fixo
+        - F2 – Lista de possibilidades
+        - F3 – Configuração
+        - F4 – Botões de atalho
+        - Não se aplica
   - type: textarea
     id: notas
     attributes:
       label: Notas técnicas (opcional)
-      description: Seletores DOM, funções do legado, dependências com outras issues (#123), riscos.
+      description: Seções da skill sghx (ex. MAPA.md §4.8), seletores, dependências com outras issues (#123), riscos.
