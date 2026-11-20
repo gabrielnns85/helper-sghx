@@ -1,0 +1,43 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    # O nome "test" é o check exigido pela proteção da branch main.
+    name: test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Testes unitários (Vitest + jsdom)
+        run: npm test
+
+      - name: Build da extensão
+        run: npm run build
+
+      - name: Publicar o pacote da extensão
+        uses: actions/upload-artifact@v4
+        with:
+          name: helper-sghx-${{ github.sha }}
+          path: dist/helper-sghx-*.zip
+          if-no-files-found: error
+          retention-days: 14
