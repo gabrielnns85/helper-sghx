@@ -1,0 +1,25 @@
+<!--
+  Fixture SINTÉTICA (detecção de tela, issue #5): Consulta Médica (SOAP) aberta sobre a fila.
+  Imita a estrutura do SGHx v5.161 (skill sghx, MAPA.md §3). Nenhum dado real.
+-->
+<div class="content">
+  <div class="fila-atendimento">
+    <select id="Fila_CodAgrupamento"><option value="1">POR FILA</option><option value="2">POR USUÁRIO</option></select>
+    <table class="fila-acoes"><tr><td>PRONTO ATENDIMENTO - CIRURGIA GERAL</td><td>1</td></tr></table>
+    <table class="fila-pacientes"><tr><td>1</td><td>M</td><td>TESTE TESTE - 30 ANO(S)</td></tr></table>
+  </div>
+  <div id="Consulta_Modal" class="lightbox" style="display: block;">
+    <div class="light-bg"></div>
+    <div class="light-content-box -form">
+      <div class="title-modal"><h3 class="title3">Consulta Médica</h3></div>
+      <div class="toolbar-box">
+        <a href="#" id="ConsultaToolbar_Pesquisar">Chamar Painel</a>
+        <a href="#" id="ConsultaToolbar_Salvar">Salvar</a>
+        <a href="#" id="ConsultaToolbar_Sair">Sair</a>
+      </div>
+      <div class="cabecalho">TESTE TESTE - 30 ANO(S)</div>
+      <ul class="abas"><li id="TabPrincipalConsulta_1">Subjetivo</li><li id="TabPrincipalConsulta_10">Ferramentas do SOAP</li></ul>
+      <textarea id="Consulta_MotivoAtendimento"></textarea>
+    </div>
+  </div>
+</div>
