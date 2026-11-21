@@ -9,6 +9,21 @@ Toda funcionalidade, correção ou refatoração segue **esta ordem**, sem pular
 3. **Implementação/integração** — ligue o código à extensão (painel, configuração, detecção de tela) e teste manualmente no navegador com a extensão carregada em modo desenvolvedor.
 4. **Pull Request** — só com tudo funcionando (testes verdes no CI + teste manual ok) abra o PR com `Closes #N` para avaliação. Nada vai para `main` sem PR revisado.
 
+### Com Claude Code: usar o ECC
+
+Quem trabalha com Claude Code usa o plugin **ECC** (`ecc@ecc`) como padrão, **no lugar dos fluxos nativos do Claude Code**. Cada etapa acima tem o seu correspondente no ECC:
+
+| Etapa | ECC |
+|---|---|
+| Análise da issue | `/ecc:issue-review <número>` |
+| Plano (antes de qualquer código, com aprovação) | `/ecc:plan` |
+| 1–2. Testes → código | skill `tdd-workflow` (agente `tdd-guide`) |
+| Build/testes quebrados | `/ecc:build-fix` |
+| Revisão antes do PR | `/ecc:code-review`, `security-reviewer`, `healthcare-reviewer` |
+| Conferência final | skill `verification-loop` |
+
+A lista completa de agentes por situação está no `CLAUDE.md`. Instalação: `/plugin marketplace add https://github.com/affaan-m/ECC` e `/plugin install ecc@ecc`.
+
 ## Definição de pronto (DoD)
 
 - [ ] Testes unitários cobrindo os critérios de aceite, escritos antes do código
