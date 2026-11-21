@@ -2,7 +2,7 @@
 // O lado MAIN (DevExtreme/observables) fica em ./page-fields.js e é usado pela ponte.
 export { waitFor, waitForElement, waitForGone, DEFAULT_TIMEOUT } from './wait.js';
 export { setFieldValue } from './fields.js';
-export { getOpenDialogs, waitForDialog, confirmDialog } from './dialogs.js';
+export { getOpenDialogs, waitForDialog, confirmDialog, autoDismissDialogs } from './dialogs.js';
 export { clickAndWait } from './actions.js';
 export {
   DomHelperError,

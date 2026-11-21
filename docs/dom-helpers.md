@@ -82,6 +82,23 @@ await confirmDialog({ text: /sair sem salvar/, button: 'Sim' });
 com "salvar", "gravar", "assinar", "alta" ou "liberado" (exceto "sair sem salvar").
 Use `allowSave: true` só quando o médico já confirmou a gravação no painel.
 
+### Fechar sozinho avisos ignoráveis
+
+```js
+import { autoDismissDialogs } from '../core/dom/index.js';
+
+const watcher = autoDismissDialogs(
+  [{ text: /texto exato do aviso ignorável/i, button: 'OK' }],
+  { onDismiss: (d) => log(`Fechei: ${d.message}`), onError: (e) => log(e.message) },
+);
+// ... automação ...
+watcher.stop();
+```
+
+Fecha, enquanto ativo, os pop-ups que casam com alguma regra (um clique por pop-up).
+As regras devem ser **específicas**: avisos clínicos (ex.: alergia) nunca devem ser
+fechados sem o médico ver. Pop-ups de gravação nunca são confirmados (vão para `onError`).
+
 ## Clicar e esperar
 
 ```js
