@@ -76,6 +76,19 @@ describe('clickAndWait', () => {
     expect(clique).not.toHaveBeenCalled();
   });
 
+  it.each([
+    ['data-disabled="true"', (a) => a.setAttribute('data-disabled', 'true')],
+    ['classe -disabled', (a) => a.classList.add('-disabled')],
+  ])('não clica em link desabilitado pelo SGHx (%s, como faz o $.fn.desabilita)', async (_, desabilita) => {
+    document.body.insertAdjacentHTML('beforeend', '<a id="PrescricaoMedicamentoGridToolbar_Inserir">Inserir</a>');
+    const a = document.querySelector('#PrescricaoMedicamentoGridToolbar_Inserir');
+    desabilita(a);
+    const clique = vi.fn();
+    a.addEventListener('click', clique);
+    await expect(clickAndWait(a, '#x')).rejects.toThrow('"#PrescricaoMedicamentoGridToolbar_Inserir" está desabilitado; o clique não foi feito');
+    expect(clique).not.toHaveBeenCalled();
+  });
+
   it('alvo inexistente gera ElementNotFoundError', async () => {
     await expect(clickAndWait('#naoExiste', '#x')).rejects.toBeInstanceOf(ElementNotFoundError);
   });
