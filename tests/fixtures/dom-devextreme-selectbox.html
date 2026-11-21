@@ -1,0 +1,26 @@
+<!--
+  Fixture SINTÉTICA (helpers de DOM, issue #4). Imita a marcação de widgets
+  DevExtreme, como o combo de medicamento da prescrição (.comboMedicamento,
+  skill sghx, MAPA.md §4.6). As instâncias são criadas no teste com um stub.
+  Nenhum dado real.
+-->
+<div id="prescricao">
+  <div id="comboMedicamento" class="comboMedicamento dx-widget dx-selectbox dx-texteditor dx-dropdowneditor">
+    <div class="dx-dropdowneditor-input-wrapper">
+      <div class="dx-texteditor-container">
+        <input id="comboMedicamentoInput" class="dx-texteditor-input" type="text" autocomplete="off">
+        <input type="hidden" name="CodMedicamento">
+      </div>
+      <div id="comboMedicamentoBotao" class="dx-widget dx-button dx-dropdowneditor-button"></div>
+    </div>
+  </div>
+  <div id="dataInicio" class="dx-widget dx-datebox dx-texteditor">
+    <input class="dx-texteditor-input" type="text">
+  </div>
+  <div id="textoLivre" class="dx-widget dx-textbox dx-texteditor">
+    <input class="dx-texteditor-input" type="text">
+  </div>
+  <div id="semInstancia" class="dx-widget dx-selectbox">
+    <input class="dx-texteditor-input" type="text">
+  </div>
+</div>

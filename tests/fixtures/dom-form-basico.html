@@ -1,0 +1,22 @@
+<!--
+  Fixture SINTÉTICA (helpers de DOM, issue #4). Não foi capturada do SGHx:
+  campos HTML comuns com nomes inspirados na consulta (skill sghx, MAPA.md §3).
+  Nenhum dado real.
+-->
+<form id="form-basico">
+  <input id="txtNome" name="Nome" type="text">
+  <textarea id="txtDescricao" name="Descricao"></textarea>
+  <input id="txtData" name="DatPrimeirosSintomas" class="datepicker dtpassada" type="text" maxlength="10">
+  <input id="txtSomenteLeitura" type="text" readonly value="fixo">
+  <input id="txtDesabilitado" type="text" disabled>
+  <select id="bpaPrincipal" name="bpaPrincipal">
+    <option value="">Selecione</option>
+    <option value="0301060096">ATENDIMENTO MEDICO EM UNIDADE DE PRONTO ATENDIMENTO</option>
+    <option value="0301060100">ATENDIMENTO ORTOPÉDICO COM IMOBILIZAÇÃO PROVISÓRIA</option>
+  </select>
+  <input id="chkCabecalho" name="IndCabecalho" type="checkbox">
+  <label><input type="radio" name="TipoDiagnostico" id="rdProvisorio" value="1"> Provisório</label>
+  <label><input type="radio" name="TipoDiagnostico" id="rdDefinitivo" value="2"> Definitivo</label>
+  <button id="btnPesquisar" type="button">Pesquisar</button>
+  <button id="btnDesabilitado" type="button" disabled>Inativo</button>
+</form>

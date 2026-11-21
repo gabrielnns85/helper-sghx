@@ -1,4 +1,5 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
+import ko from 'knockout';
 import { createRequest } from '../../src/core/bridge-protocol.js';
 import { createPageHandlers, handleRequest } from '../../src/core/bridge-handlers.js';
 
@@ -29,5 +30,33 @@ describe('bridge-handlers (mundo MAIN)', () => {
       ping: () => { throw new Error('quebrou'); },
     });
     expect(res).toMatchObject({ ok: false, error: 'quebrou' });
+  });
+
+  describe('setFieldValue', () => {
+    afterEach(() => {
+      document.body.innerHTML = '';
+      delete window.ko;
+    });
+
+    it('está na lista de comandos e grava no observable pela ponte', async () => {
+      window.ko = ko;
+      document.body.innerHTML = '<div id="vm"><span id="dias" data-bind="text: NumDias"></span></div>';
+      const vm = { NumDias: ko.observable(0) };
+      ko.applyBindings(vm, document.querySelector('#vm'));
+      const handlers = createPageHandlers(window);
+      const res = await handleRequest(
+        createRequest('setFieldValue', { selector: '#dias', value: 4, observable: 'NumDias' }, 'r5'),
+        handlers,
+      );
+      expect(res).toMatchObject({ ok: true, payload: { strategy: 'knockout' } });
+      expect(vm.NumDias()).toBe(4);
+      ko.cleanNode(document.querySelector('#vm'));
+    });
+
+    it('devolve erro (sem lançar) quando o payload é inválido', async () => {
+      const res = await handleRequest(createRequest('setFieldValue', { selector: 42 }, 'r6'), createPageHandlers(window));
+      expect(res).toMatchObject({ ok: false });
+      expect(res.error).toMatch(/seletor/i);
+    });
   });
 });

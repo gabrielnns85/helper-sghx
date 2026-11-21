@@ -1,0 +1,13 @@
+<!--
+  Fixture SINTÉTICA (helpers de DOM, issue #4). Imita campos ligados por
+  Knockout (data-bind) como os do view-model da consulta (skill sghx, MAPA.md §3).
+  O teste aplica os bindings com um view-model fictício. Nenhum dado real.
+-->
+<div id="vmConsulta">
+  <textarea id="DscMotivo" data-bind="value: DscMotivo"></textarea>
+  <input id="DscHistorico" type="text" data-bind="textInput: DscHistorico">
+  <select id="IndTipoDiagnostico" data-bind="options: Tipos, optionsText: 'Dsc', optionsValue: 'Cod', value: IndTipoDiagnostico"></select>
+  <input id="IndCabecalho" type="checkbox" data-bind="checked: IndCabecalho">
+  <span id="spanNumDias" data-bind="text: NumDias"></span>
+  <span id="spanTotal" data-bind="text: Total"></span>
+</div>
