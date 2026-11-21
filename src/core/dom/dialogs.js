@@ -66,6 +66,26 @@ export function waitForDialog({ text, timeout, root = document, exclude } = {}) 
   );
 }
 
+function findButton(dialog, button) {
+  const found = dialog.buttons.find((b) => (button instanceof RegExp ? matchesText(b.text, button) : sameText(b.text, button)));
+  if (!found) {
+    throw new DomHelperError(
+      `Botão ${describePattern(button)} não existe no pop-up "${dialog.message}". Botões: ${dialog.buttons.map((b) => b.text).join('; ')}`,
+    );
+  }
+  return found;
+}
+
+function assertNotSave(dialog, caller) {
+  if (SAVE_PATTERN.test(normalizeText(`${dialog.title} ${dialog.message}`))) {
+    throw new DomHelperError(
+      `${caller} recusou: o pop-up "${dialog.message}" parece confirmar uma gravação no prontuário, que só o médico pode confirmar`,
+    );
+  }
+}
+
+const isBlank = (v) => v === undefined || v === null || v === '';
+
 /**
  * Confirma um pop-up esperado: acha o pop-up pelo texto, clica no botão pedido e
  * espera o pop-up fechar. `text` e `button` são obrigatórios: não existe botão
@@ -79,27 +99,64 @@ export function waitForDialog({ text, timeout, root = document, exclude } = {}) 
  * @returns {Promise<{ title: string, message: string, button: string }>}
  */
 export async function confirmDialog({ text, button, allowSave = false, timeout = 5000, root = document } = {}) {
-  if (text === undefined || text === null || text === '') {
-    throw new TypeError('confirmDialog: informe o texto esperado do pop-up (text)');
-  }
-  if (button === undefined || button === null || button === '') {
-    throw new TypeError('confirmDialog: informe o botão a clicar (button)');
-  }
+  if (isBlank(text)) throw new TypeError('confirmDialog: informe o texto esperado do pop-up (text)');
+  if (isBlank(button)) throw new TypeError('confirmDialog: informe o botão a clicar (button)');
 
   const dialog = await waitForDialog({ text, timeout, root });
-  const found = dialog.buttons.find((b) => (button instanceof RegExp ? matchesText(b.text, button) : sameText(b.text, button)));
-  if (!found) {
-    throw new DomHelperError(
-      `Botão ${describePattern(button)} não existe no pop-up "${dialog.message}". Botões: ${dialog.buttons.map((b) => b.text).join('; ')}`,
-    );
-  }
-  if (!allowSave && SAVE_PATTERN.test(normalizeText(`${dialog.title} ${dialog.message}`))) {
-    throw new DomHelperError(
-      `confirmDialog recusou: o pop-up "${dialog.message}" parece confirmar uma gravação no prontuário, que só o médico pode confirmar`,
-    );
-  }
+  const found = findButton(dialog, button);
+  if (!allowSave) assertNotSave(dialog, 'confirmDialog');
 
   found.el.click();
   await waitForGone(dialog.el, { timeout, root, description: `pop-up "${dialog.message}" fechar` });
   return { title: dialog.title, message: dialog.message, button: found.text };
+}
+
+/**
+ * Fecha sozinho, enquanto estiver ativo, os pop-ups que casam com alguma regra
+ * (ex.: avisos que podem ser sempre ignorados e travariam a automação).
+ * Cada regra exige `text` (RegExp ou "contém") e `button`. Cada pop-up recebe no
+ * máximo um clique. Pop-ups de gravação nunca são confirmados (vão para onError).
+ *
+ * As regras devem ser específicas: avisos clínicos (ex.: alergia) não podem
+ * ser fechados sem o médico ver.
+ *
+ * @param {{ text: string | RegExp, button: string | RegExp }[]} rules
+ * @param {{ root?: ParentNode, onDismiss?: Function, onError?: Function }} [opts]
+ * @returns {{ stop(): void }}
+ */
+export function autoDismissDialogs(rules, { root = document, onDismiss, onError } = {}) {
+  if (!Array.isArray(rules) || !rules.length || rules.some((r) => !r || isBlank(r.text) || isBlank(r.button))) {
+    throw new TypeError('autoDismissDialogs: informe ao menos uma regra com text e button');
+  }
+  const handled = new WeakSet();
+  let stopped = false;
+
+  const scan = () => {
+    if (stopped) return;
+    for (const dialog of getOpenDialogs({ root })) {
+      if (handled.has(dialog.el)) continue;
+      const rule = rules.find((r) => dialogMatches(dialog, r.text));
+      if (!rule) continue;
+      handled.add(dialog.el);
+      try {
+        const found = findButton(dialog, rule.button);
+        assertNotSave(dialog, 'autoDismissDialogs');
+        found.el.click();
+        onDismiss?.({ title: dialog.title, message: dialog.message, button: found.text });
+      } catch (err) {
+        onError?.(err);
+      }
+    }
+  };
+
+  const doc = root.ownerDocument ?? root;
+  const observer = new doc.defaultView.MutationObserver(scan);
+  observer.observe(root, { childList: true, subtree: true, attributes: true });
+  scan();
+  return {
+    stop() {
+      stopped = true;
+      observer.disconnect();
+    },
+  };
 }
