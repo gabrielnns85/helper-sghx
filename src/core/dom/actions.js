@@ -18,7 +18,7 @@ import { waitFor, waitForElement, waitForGone } from './wait.js';
 export async function clickAndWait(target, until, { timeout, root = document } = {}) {
   const wait = buildWait(until, { timeout, root });
   const { el, label } = resolveElement(target, { root });
-  if (el.disabled || el.getAttribute('aria-disabled') === 'true') {
+  if (isDisabled(el)) {
     throw new DomHelperError(`"${label}" está desabilitado; o clique não foi feito`);
   }
 
@@ -32,6 +32,17 @@ export async function clickAndWait(target, until, { timeout, root = document } =
     }
     throw err;
   }
+}
+
+/**
+ * `disabled`/`aria-disabled`, e o jeito do SGHx: `$.fn.desabilita` marca
+ * `data-disabled="true"` e, em links/spans, a classe `-disabled` (e tira os handlers).
+ */
+function isDisabled(el) {
+  return Boolean(el.disabled)
+    || el.getAttribute('aria-disabled') === 'true'
+    || el.getAttribute('data-disabled') === 'true'
+    || el.classList.contains('-disabled');
 }
 
 function buildWait(until, opts) {
