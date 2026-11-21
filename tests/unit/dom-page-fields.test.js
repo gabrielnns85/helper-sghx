@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import ko from 'knockout';
 import $ from 'jquery';
 import { loadFixture, clearFixture } from '../helpers/load-fixture.js';
@@ -82,6 +82,67 @@ describe('setPageFieldValue: DevExtreme', () => {
     expect(() => setPageFieldValue(win, { selector: '#comboMedicamento', value: 'AMOXICILINA' })).toThrow(
       'Opção "AMOXICILINA" não existe em "#comboMedicamento". Opções: DIPIRONA 500 MG COMPRIMIDO; PARACETAMOL 750 MG COMPRIMIDO; ÁCIDO ACETILSALICÍLICO 100 MG',
     );
+  });
+
+  describe('acceptCustomValue (medicamento externo: texto livre)', () => {
+    // Igual ao combo da aba "Medicamentos Não Pertencentes a Farmácia Básica" (MAPA.md §4.6).
+    const externo = (extra = {}) => {
+      const ds = MEDICAMENTOS.map((m) => ({ DscMedicamento: m.DscMedicamento }));
+      const criar = vi.fn((e) => {
+        const dataSource = e.component.option('dataSource');
+        if (!e.text || dataSource.find((i) => i.DscMedicamento === e.text.trim())) { e.customItem = null; return; }
+        const item = { DscMedicamento: e.text.trim().toUpperCase() };
+        dataSource.push(item);
+        e.component.option('dataSource', dataSource);
+        e.customItem = item;
+      });
+      const inst = selectBox({
+        items: undefined,
+        dataSource: ds,
+        valueExpr: 'DscMedicamento',
+        displayExpr: 'DscMedicamento',
+        acceptCustomValue: true,
+        onCustomItemCreating: criar,
+        ...extra,
+      });
+      return { inst, criar };
+    };
+
+    it('cria o item pelo onCustomItemCreating da própria página, como quando o médico digita', () => {
+      const { inst, criar } = externo();
+      const res = setPageFieldValue(win, { selector: '#comboMedicamento', value: 'IBUPROFENO 300MG COMPRIMIDO' });
+      expect(criar).toHaveBeenCalledTimes(1);
+      expect(criar.mock.calls[0][0]).toMatchObject({ text: 'IBUPROFENO 300MG COMPRIMIDO', component: inst });
+      expect(inst.option('value')).toBe('IBUPROFENO 300MG COMPRIMIDO');
+      expect(inst.option('dataSource').at(-1)).toEqual({ DscMedicamento: 'IBUPROFENO 300MG COMPRIMIDO' });
+      expect(res).toEqual({ strategy: 'devextreme', widget: 'dxSelectBox', customItem: true });
+    });
+
+    it('usa o valor do item criado (a página pode normalizar o texto)', () => {
+      const { inst } = externo();
+      setPageFieldValue(win, { selector: '#comboMedicamento', value: 'ibuprofeno 300mg comprimido' });
+      expect(inst.option('value')).toBe('IBUPROFENO 300MG COMPRIMIDO');
+    });
+
+    it('item que já existe é escolhido sem criar outro', () => {
+      const { inst, criar } = externo();
+      const res = setPageFieldValue(win, { selector: '#comboMedicamento', value: 'paracetamol 750 mg comprimido' });
+      expect(criar).not.toHaveBeenCalled();
+      expect(inst.option('value')).toBe('PARACETAMOL 750 MG COMPRIMIDO');
+      expect(res.customItem).toBeUndefined();
+    });
+
+    it('sem onCustomItemCreating grava o texto como valor', () => {
+      const { inst } = externo({ onCustomItemCreating: undefined });
+      setPageFieldValue(win, { selector: '#comboMedicamento', value: 'IBUPROFENO 300MG COMPRIMIDO' });
+      expect(inst.option('value')).toBe('IBUPROFENO 300MG COMPRIMIDO');
+    });
+
+    it('se a página recusa criar o item, grava o texto como valor', () => {
+      const { inst } = externo({ onCustomItemCreating: (e) => { e.customItem = null; } });
+      setPageFieldValue(win, { selector: '#comboMedicamento', value: 'IBUPROFENO 300MG COMPRIMIDO' });
+      expect(inst.option('value')).toBe('IBUPROFENO 300MG COMPRIMIDO');
+    });
   });
 
   it('dxSelectBox sem itens carregados (fonte remota) grava o valor direto', () => {
