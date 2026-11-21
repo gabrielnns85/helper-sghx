@@ -49,6 +49,13 @@ export const atestado = {
 - O erro de um ouvinte é registrado no console e não impede os outros.
 - Para checar uma vez, sem observar: `detectScreen({ root })`.
 
+## Limites conhecidos
+
+- O atestado aberto pelo menu (*Usuário > Atestado*, `AtestadoMedico/AtestadoMedicoToModal`)
+  ainda não está mapeado na skill e aparece como `unknown`. Só o atestado das
+  Ferramentas do SOAP é reconhecido.
+- O "modal de cima" é o último na ordem do DOM (mesma premissa de `getOpenDialogs`).
+
 ## Tela nova
 
 1. Mapeie a tela na skill `sghx` (id do modal e, se o modal for genérico, o título).
