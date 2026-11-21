@@ -1,6 +1,7 @@
 // Content script no mundo isolado: UI, funcionalidades e chrome.*.
 import { createBridgeClient } from './core/bridge-client.js';
 import { createFeatureRegistry } from './features/index.js';
+import { watchScreen } from './core/screen/index.js';
 import { initUi } from './ui/index.js';
 
 const PING_ATTEMPTS = 3;
@@ -21,8 +22,11 @@ async function main() {
   const bridge = createBridgeClient(window, { timeoutMs: 1000 });
   const features = createFeatureRegistry();
 
+  // Tela ativa do SGHx: as funcionalidades usam screen.current() e screen.subscribe().
+  const screen = watchScreen();
+
   initUi();
-  await features.initAll({ bridge });
+  await features.initAll({ bridge, screen });
 
   try {
     const page = await pingBridge(bridge);

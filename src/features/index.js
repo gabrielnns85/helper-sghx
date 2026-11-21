@@ -1,6 +1,8 @@
 /**
  * Registro das funcionalidades. Cada funcionalidade é { id, init(ctx) }.
  * Funcionalidades são adicionadas nas próprias issues (login, fila, atestado…).
+ * ctx = { bridge, screen }: `screen` é o watchScreen (src/core/screen), para agir
+ * só na tela certa (`screen.current().id`) e reagir a mudanças (`screen.subscribe`).
  */
 export function createFeatureRegistry() {
   const features = [];
