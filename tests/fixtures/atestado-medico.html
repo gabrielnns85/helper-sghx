@@ -1,0 +1,34 @@
+<!--
+  Fixture SINTÉTICA (detecção de tela, issue #5): Atestado Médico (questionário genérico #ModalQuestionario).
+  Imita a estrutura do SGHx v5.161 (skill sghx, MAPA.md §4.8). Nenhum dado real.
+-->
+<div class="content">
+  <div class="fila-atendimento">
+    <select id="Fila_CodAgrupamento"><option value="1">POR FILA</option><option value="2">POR USUÁRIO</option></select>
+    <table class="fila-acoes"><tr><td>PRONTO ATENDIMENTO - CIRURGIA GERAL</td><td>1</td></tr></table>
+    <table class="fila-pacientes"><tr><td>1</td><td>M</td><td>TESTE TESTE - 30 ANO(S)</td></tr></table>
+  </div>
+  <div id="Consulta_Modal" class="lightbox" style="display: block;">
+    <div class="light-bg"></div>
+    <div class="light-content-box -form">
+      <div class="title-modal"><h3 class="title3">Consulta Médica</h3></div>
+      <div class="toolbar-box">
+        <a href="#" id="ConsultaToolbar_Pesquisar">Chamar Painel</a>
+        <a href="#" id="ConsultaToolbar_Salvar">Salvar</a>
+        <a href="#" id="ConsultaToolbar_Sair">Sair</a>
+      </div>
+      <div class="cabecalho">TESTE TESTE - 30 ANO(S)</div>
+      <ul class="abas"><li id="TabPrincipalConsulta_1">Subjetivo</li><li id="TabPrincipalConsulta_10">Ferramentas do SOAP</li></ul>
+      <textarea id="Consulta_MotivoAtendimento"></textarea>
+    </div>
+  </div>
+  <div id="ModalQuestionario" class="lightbox" style="display: block;">
+    <div class="light-bg"></div>
+    <div class="light-content-box -form">
+      <div class="title-modal"><h3 class="title3">Atestado Médico</h3></div>
+      <div class="toolbar-box"><a href="#" id="ModalQuestionarioToolbar_Salvar">Salvar</a><a href="#" id="ModalQuestionarioToolbar_Sair">Sair</a></div>
+      <table><tr><th>Campo</th><th>Resposta</th></tr>
+        <tr><td>Número de dias de afastamento do trabalho a partir desta data por motivo de doença:</td><td><input type="text"></td></tr></table>
+    </div>
+  </div>
+</div>
