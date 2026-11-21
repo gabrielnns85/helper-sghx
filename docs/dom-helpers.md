@@ -47,6 +47,7 @@ await setFieldValue('#algumElemento', 5, { observable: 'NumDias', bridge });    
 | select | pelo `value` ou pelo texto completo da opção (sem acentos/maiúsculas) |
 | checkbox / radio | clique de verdade (o binding `checked` do Knockout escuta `click`) |
 | `.dx-widget` (DevExtreme) | ponte → `instance.option('value', …)`; em SelectBox/Lookup/TagBox casa pelo valor ou pelo texto exibido |
+| `.dx-widget` com `acceptCustomValue` (ex.: medicamento externo) | sem item que case, cria o item pelo `onCustomItemCreating` da própria página, como quando o médico digita |
 | opção `observable` | ponte → `ko.dataFor(el)[nome](valor)` |
 
 Os eventos nativos bastam para os bindings `value`, `textInput`, `checked` e
