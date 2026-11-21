@@ -98,20 +98,39 @@ function listItems(inst) {
   return Array.isArray(loaded) ? loaded : [];
 }
 
-/** Valor do item que casa por valor (=== ou mesmo texto) ou pelo texto exibido. */
+/**
+ * Valor do item que casa por valor (=== ou mesmo texto) ou pelo texto exibido.
+ * Sem item e com `acceptCustomValue` (ex.: medicamento externo), cria o item como
+ * quando o médico digita: pelo `onCustomItemCreating` da própria página.
+ * @returns {{ value: any, customItem?: true }}
+ */
 function pickListValue(inst, label, value) {
   const items = listItems(inst);
-  if (!items.length) return value; // fonte remota ainda não carregada: grava direto
+  if (!items.length) return { value }; // fonte remota ainda não carregada: grava direto
   const valueExpr = inst.option('valueExpr');
   const displayExpr = inst.option('displayExpr');
   const valueOf = (i) => expr(i, valueExpr);
   const displayOf = (i) => String(expr(i, displayExpr) ?? '');
   const byValue = items.find((i) => valueOf(i) === value)
     ?? items.find((i) => String(valueOf(i)) === String(value));
-  if (byValue !== undefined) return valueOf(byValue);
+  if (byValue !== undefined) return { value: valueOf(byValue) };
   const byText = items.find((i) => sameText(displayOf(i), value));
-  if (byText !== undefined) return valueOf(byText);
+  if (byText !== undefined) return { value: valueOf(byText) };
+  if (inst.option('acceptCustomValue')) return { value: createCustomValue(inst, value, valueOf), customItem: true };
   throw new OptionNotFoundError(value, label, items.slice(0, 30).map(displayOf));
+}
+
+function createCustomValue(inst, value, valueOf) {
+  const handler = inst.option('onCustomItemCreating');
+  if (typeof handler === 'function') {
+    const element = typeof inst.element === 'function' ? inst.element() : inst.element;
+    const e = { component: inst, element, text: String(value), customItem: undefined };
+    handler(e);
+    const item = e.customItem;
+    // customItem assíncrono (Promise) não é usado pelo SGHx: cai no texto.
+    if (item !== null && item !== undefined && typeof item.then !== 'function') return valueOf(item);
+  }
+  return value;
 }
 
 function setDevExtreme(win, el, label, value) {
@@ -121,9 +140,9 @@ function setDevExtreme(win, el, label, value) {
   const found = findInstance(win, el);
   if (!found) throw new DomHelperError(`Não achei a instância do DevExtreme de "${label}"`);
   const { inst, widget } = found;
-  const finalValue = LIST_WIDGETS.has(widget) ? pickListValue(inst, label, value) : value;
-  inst.option('value', finalValue);
+  const picked = LIST_WIDGETS.has(widget) ? pickListValue(inst, label, value) : { value };
+  inst.option('value', picked.value);
   const now = inst.option('value');
-  if (now !== finalValue) throw new ValueNotAppliedError(label, finalValue, now);
-  return { strategy: 'devextreme', widget };
+  if (now !== picked.value) throw new ValueNotAppliedError(label, picked.value, now);
+  return picked.customItem ? { strategy: 'devextreme', widget, customItem: true } : { strategy: 'devextreme', widget };
 }
