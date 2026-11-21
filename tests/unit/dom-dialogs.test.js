@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { loadFixture, clearFixture } from '../helpers/load-fixture.js';
 import { addDialog, wireDialogButtons } from '../helpers/dialogs.js';
-import { getOpenDialogs, waitForDialog, confirmDialog } from '../../src/core/dom/dialogs.js';
+import { getOpenDialogs, waitForDialog, confirmDialog, autoDismissDialogs } from '../../src/core/dom/dialogs.js';
 import { DomHelperError, TimeoutError } from '../../src/core/dom/errors.js';
 
 function settle(promise) {
@@ -139,5 +139,88 @@ describe('confirmDialog', () => {
     const err = settle(confirmDialog({ text: 'teimoso', button: 'OK', timeout: 500 }));
     await vi.advanceTimersByTimeAsync(1000);
     expect((await err).message).toBe('Tempo esgotado (500 ms) aguardando: pop-up "Pop-up teimoso" fechar');
+  });
+});
+
+describe('autoDismissDialogs', () => {
+  const IGNORAVEL = { text: /já foi prescrito/i, button: 'OK' };
+  let watcher;
+
+  afterEach(() => watcher?.stop());
+
+  it('fecha pop-up ignorável que aparece depois e avisa quem chamou', async () => {
+    const onDismiss = vi.fn();
+    watcher = autoDismissDialogs([IGNORAVEL], { onDismiss });
+    const dlg = addDialog({ title: 'Aviso!', message: 'Medicamento já foi prescrito para o paciente.', buttons: ['OK'] });
+    const clique = vi.fn();
+    dlg.querySelector('a').addEventListener('click', clique);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(clique).toHaveBeenCalledTimes(1);
+    expect(dlg.isConnected).toBe(false);
+    expect(onDismiss).toHaveBeenCalledWith({ title: 'Aviso!', message: 'Medicamento já foi prescrito para o paciente.', button: 'OK' });
+  });
+
+  it('fecha também o que já estava aberto ao começar', async () => {
+    const dlg = addDialog({ message: 'Medicamento já foi prescrito', buttons: ['OK'] });
+    watcher = autoDismissDialogs([IGNORAVEL]);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(dlg.isConnected).toBe(false);
+  });
+
+  it('não mexe em pop-ups fora das regras (ex.: alergia)', async () => {
+    watcher = autoDismissDialogs([IGNORAVEL]);
+    const alergia = addDialog({ message: 'Paciente alérgico a DIPIRONA', buttons: ['OK'] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(alergia.isConnected).toBe(true);
+    expect(document.querySelector('#dlg-sair')).not.toBeNull();
+  });
+
+  it('clica uma vez só por pop-up, mesmo com várias mudanças no DOM', async () => {
+    watcher = autoDismissDialogs([IGNORAVEL]);
+    const dlg = addDialog({ message: 'já foi prescrito', buttons: ['OK'] });
+    const ok = dlg.querySelector('a');
+    const fixo = ok.cloneNode(true); // botão que não fecha o pop-up
+    ok.replaceWith(fixo);
+    const clique = vi.fn();
+    fixo.addEventListener('click', clique);
+    await vi.advanceTimersByTimeAsync(0);
+    document.body.appendChild(document.createElement('p'));
+    dlg.setAttribute('data-x', '1');
+    await vi.advanceTimersByTimeAsync(0);
+    expect(clique).toHaveBeenCalledTimes(1);
+  });
+
+  it('recusa regra que casaria com pop-up de gravação e avisa por onError', async () => {
+    const onError = vi.fn();
+    watcher = autoDismissDialogs([{ text: /consulta/, button: 'Sim' }], { onError });
+    const dlg = addDialog({ message: 'Deseja salvar a consulta?', buttons: ['Sim', 'Não'] });
+    const clique = vi.fn();
+    dlg.querySelector('a').addEventListener('click', clique);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(clique).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledTimes(1);
+    expect(onError.mock.calls[0][0].message).toMatch(/gravação/);
+  });
+
+  it('avisa por onError quando o botão da regra não existe', async () => {
+    const onError = vi.fn();
+    watcher = autoDismissDialogs([{ text: /prescrito/, button: 'Fechar' }], { onError });
+    addDialog({ message: 'já foi prescrito', buttons: ['OK'] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(onError.mock.calls[0][0].message).toMatch(/Botão "Fechar" não existe/);
+  });
+
+  it('stop() para de observar', async () => {
+    watcher = autoDismissDialogs([IGNORAVEL]);
+    watcher.stop();
+    const dlg = addDialog({ message: 'já foi prescrito', buttons: ['OK'] });
+    await vi.advanceTimersByTimeAsync(0);
+    expect(dlg.isConnected).toBe(true);
+  });
+
+  it('exige regras com texto e botão', () => {
+    expect(() => autoDismissDialogs([])).toThrow(TypeError);
+    expect(() => autoDismissDialogs([{ text: /x/ }])).toThrow(TypeError);
+    expect(() => autoDismissDialogs([{ button: 'OK' }])).toThrow(TypeError);
   });
 });
