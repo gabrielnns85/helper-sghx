@@ -224,3 +224,55 @@ describe('autoDismissDialogs', () => {
     expect(() => autoDismissDialogs([{ button: 'OK' }])).toThrow(TypeError);
   });
 });
+
+describe('pop-up real: "já foi prescrito e consta pendente entrega"', () => {
+  // O nome do medicamento muda; a regra olha só o resto da frase.
+  const JA_PRESCRITO = { text: /j[áa] foi prescrito e consta pendente (de )?entrega/i, button: 'OK' };
+
+  beforeEach(() => {
+    clearFixture();
+    loadFixture('dom-dialog-ja-prescrito');
+    wireDialogButtons();
+  });
+
+  it('é reconhecido com título, mensagem limpa, tipo erro e botão OK', () => {
+    const [dlg] = getOpenDialogs();
+    expect(dlg).toMatchObject({
+      title: 'Aviso!',
+      message: 'DIPIRONA SODICA 500 MG COMPRIMIDO já foi prescrito e consta pendente entrega!',
+      isError: true,
+    });
+    expect(dlg.buttons.map((b) => b.text)).toEqual(['OK']);
+  });
+
+  it('autoDismissDialogs fecha com OK, para qualquer medicamento', async () => {
+    const onDismiss = vi.fn();
+    const watcher = autoDismissDialogs([JA_PRESCRITO], { onDismiss });
+    try {
+      await vi.advanceTimersByTimeAsync(0);
+      expect(document.querySelector('#dlg-ja-prescrito')).toBeNull();
+      addDialog({ title: 'Aviso!', message: 'PARACETAMOL 500 MG COMPRIMIDO já foi prescrito e consta pendente entrega!', buttons: ['OK'], error: true });
+      await vi.advanceTimersByTimeAsync(0);
+      expect(getOpenDialogs()).toEqual([]);
+      expect(onDismiss).toHaveBeenCalledTimes(2);
+    } finally {
+      watcher.stop();
+    }
+  });
+
+  it('a regra não pega outros avisos da prescrição', async () => {
+    clearFixture();
+    const watcher = autoDismissDialogs([JA_PRESCRITO]);
+    try {
+      const outros = [
+        'Paciente possui alergia ao medicamento DIPIRONA SODICA 500 MG COMPRIMIDO',
+        'DIPIRONA SODICA 500 MG COMPRIMIDO - Não existe quantidade suficiente no estoque para efetuar a entrega.',
+        "Os campos 'Setor Estoque', 'Medicamento', 'Via Administrativa', 'Quantidade' e 'Posologia' são obrigatórios.",
+      ].map((message) => addDialog({ title: 'Aviso!', message, buttons: ['OK'] }));
+      await vi.advanceTimersByTimeAsync(0);
+      expect(outros.every((d) => d.isConnected)).toBe(true);
+    } finally {
+      watcher.stop();
+    }
+  });
+});
