@@ -1,0 +1,84 @@
+<!--
+  Fixture SINTÉTICA (helpers de DOM, issue #4). Reproduz a estrutura dos pop-ups
+  que o framework da Fastmedic monta no SGHx v5.161 (estilo BootstrapDialog dentro
+  de um .lightbox anexado em .content:first). Os ids reais são GUIDs; aqui são
+  fictícios. Textos sintéticos. Nenhum dado real.
+-->
+<div class="content">
+  <div id="Consulta_Modal" class="lightbox" style="display: block;">
+    <div class="light-bg"></div>
+    <div class="light-content-box -form">
+      <div class="title-modal"><h3 class="title3">Consulta Médica</h3></div>
+      <div class="toolbar-box"><a href="#" id="ConsultaToolbar_Sair">Sair</a></div>
+    </div>
+  </div>
+
+  <div style="display:block" id="dlg-erro" class="lightbox">
+    <div class="light-bg"></div>
+    <div class="modal-content light-content">
+      <div class="modal-header erro">
+        <div class="bootstrap-dialog-header">
+          <div class="bootstrap-dialog-title"><i class="fas fa-exclamation-triangle"></i> Avisos!</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="bootstrap-dialog-body">
+          <div class="bootstrap-dialog-message">* É obrigatório o preenchimento de Queixa/Exame Físico<br>* Aba Avaliação - Obrigatório preenchimento do CIAP2 Avaliação<br></div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: block;">
+        <div class="bootstrap-dialog-footer">
+          <div class="bootstrap-dialog-footer-buttons">
+            <div class="btn-box"><a id="dlg-erro-ok" href="#" class="btn btn-ok">OK</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:block" id="dlg-sair" class="lightbox">
+    <div class="light-bg"></div>
+    <div class="modal-content light-content">
+      <div class="modal-header">
+        <div class="bootstrap-dialog-header">
+          <div class="bootstrap-dialog-title"><i class="fas fa-exclamation-triangle"></i>Atenção!</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="bootstrap-dialog-body">
+          <div class="bootstrap-dialog-message">Deseja realmente sair sem salvar?</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: block;">
+        <div class="bootstrap-dialog-footer">
+          <div class="bootstrap-dialog-footer-buttons">
+            <div class="btn-box"><a id="dlg-sair-sim" href="#" class="btn">Sim</a><a id="dlg-sair-nao" href="#" class="btn -cancel">Não</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div style="display:none" id="dlg-oculto" class="lightbox">
+    <div class="light-bg"></div>
+    <div class="modal-content light-content">
+      <div class="modal-header">
+        <div class="bootstrap-dialog-header">
+          <div class="bootstrap-dialog-title">Atenção!</div>
+        </div>
+      </div>
+      <div class="modal-body">
+        <div class="bootstrap-dialog-body">
+          <div class="bootstrap-dialog-message">Pop-up já fechado</div>
+        </div>
+      </div>
+      <div class="modal-footer" style="display: block;">
+        <div class="bootstrap-dialog-footer">
+          <div class="bootstrap-dialog-footer-buttons">
+            <div class="btn-box"><a href="#" class="btn btn-ok">OK</a></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
