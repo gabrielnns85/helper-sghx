@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { createSettings } from '../../src/core/storage/settings.js';
 import { DEFAULT_SETTINGS } from '../../src/core/storage/defaults.js';
-import { createFakeArea } from '../helpers/fake-chrome.js';
+import { createFakeArea, createFakeEvent } from '../helpers/fake-chrome.js';
 
 const DEFAULTS = Object.freeze({
   unit: Object.freeze({ name: 'UNIDADE TESTE', codFces: 1 }),
@@ -13,9 +13,12 @@ const DEFAULTS = Object.freeze({
 let area;
 let settings;
 
+// Estes testes conferem a forma; as regras de valor reais têm o próprio describe abaixo.
+const noRules = () => [];
+
 beforeEach(() => {
   area = createFakeArea();
-  settings = createSettings({ area, defaults: DEFAULTS });
+  settings = createSettings({ area, defaults: DEFAULTS, validate: noRules });
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -91,10 +94,134 @@ describe('settings.set', () => {
   });
 });
 
+describe('regras de valor (settings-rules.js)', () => {
+  beforeEach(() => {
+    area = createFakeArea();
+    settings = createSettings({ area }); // DEFAULT_SETTINGS + validateSetting
+  });
+
+  const queueRefresh = (patch) => ({ ...DEFAULT_SETTINGS.queueRefresh, ...patch });
+
+  it('set recusa valor fora das regras, com a mensagem da regra, e não grava nada', async () => {
+    await expect(settings.set({ queueRefresh: queueRefresh({ intervalSec: 10 }) })).rejects.toThrow(/30.*360/);
+    expect(area.set).not.toHaveBeenCalled();
+  });
+
+  it('set aceita valor dentro das regras', async () => {
+    await settings.set({ queueRefresh: queueRefresh({ enabled: true, intervalSec: 60 }) });
+    expect((await settings.get('queueRefresh')).intervalSec).toBe(60);
+  });
+
+  it('valor salvo fora das regras é ignorado com aviso e vale o padrão', async () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    area = createFakeArea({ settings: { unit: { name: 'OUTRA', codFces: 2 } } });
+    settings = createSettings({ area });
+    expect(await settings.get('unit')).toEqual(DEFAULT_SETTINGS.unit);
+    expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe('settings.reset', () => {
+  it('apaga o que foi salvo: volta a valer o padrão', async () => {
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    await settings.reset();
+    expect(await settings.get()).toEqual(DEFAULTS);
+    expect(area.dump()).toEqual({});
+  });
+
+  it('falha ao apagar vira erro claro', async () => {
+    area.failNext('remove');
+    await expect(settings.reset()).rejects.toThrow(/não foi possível restaurar/i);
+  });
+});
+
+describe('settings.subscribe (mudança aplicada sem recarregar)', () => {
+  let onChanged;
+
+  beforeEach(() => {
+    onChanged = createFakeEvent();
+    area = createFakeArea({}, { onChanged, areaName: 'local' });
+    settings = createSettings({ area, defaults: DEFAULTS, validate: noRules, onChanged });
+  });
+
+  it('avisa com as configurações completas e congeladas quando outra página salva', async () => {
+    const listener = vi.fn();
+    settings.subscribe(listener);
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    expect(listener).toHaveBeenCalledTimes(1);
+    const [all] = listener.mock.calls[0];
+    expect(all).toEqual({ ...DEFAULTS, queueRefresh: { enabled: true, intervalSec: 45 } });
+    expect(Object.isFrozen(all.queueRefresh)).toBe(true);
+  });
+
+  it('reset também avisa, com os padrões', async () => {
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    const listener = vi.fn();
+    settings.subscribe(listener);
+    await settings.reset();
+    expect(listener).toHaveBeenCalledWith(DEFAULTS);
+  });
+
+  it('ignora outras áreas e outras chaves', () => {
+    const listener = vi.fn();
+    settings.subscribe(listener);
+    onChanged.emit({ settings: { newValue: { queueRefresh: { enabled: true, intervalSec: 45 } } } }, 'session');
+    onChanged.emit({ outra: { newValue: 1 } }, 'local');
+    expect(listener).not.toHaveBeenCalled();
+  });
+
+  it('valor novo inválido é ignorado com aviso e vale o padrão', () => {
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const listener = vi.fn();
+    settings.subscribe(listener);
+    onChanged.emit({ settings: { newValue: { queueRefresh: 'sim' } } }, 'local');
+    expect(listener).toHaveBeenCalledWith(DEFAULTS);
+  });
+
+  it('a função devolvida cancela a inscrição', async () => {
+    const listener = vi.fn();
+    const unsubscribe = settings.subscribe(listener);
+    unsubscribe();
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    expect(listener).not.toHaveBeenCalled();
+    expect(onChanged.hasListeners()).toBe(false);
+  });
+
+  it('erro num listener não impede os outros', async () => {
+    const error = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const second = vi.fn();
+    settings.subscribe(() => {
+      throw new Error('quebrou');
+    });
+    settings.subscribe(second);
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    expect(second).toHaveBeenCalled();
+    expect(error).toHaveBeenCalledWith(expect.stringContaining('[helper-sghx]'), expect.any(Error));
+  });
+
+  it('listener que não é função lança', () => {
+    expect(() => settings.subscribe('x')).toThrow(TypeError);
+  });
+
+  it('sem chrome.storage.onChanged, subscribe lança erro claro', () => {
+    const semEvento = createSettings({ area, defaults: DEFAULTS, onChanged: null });
+    expect(() => semEvento.subscribe(() => {})).toThrow(/onChanged indisponível/i);
+  });
+});
+
 describe('DEFAULT_SETTINGS', () => {
   it('traz os padrões do MVP já decididos nas issues', () => {
     expect(DEFAULT_SETTINGS.unit).toEqual({ name: 'UPA JACANA', codFces: 28 });
-    expect(DEFAULT_SETTINGS.queueRefresh).toEqual({ enabled: false, intervalSec: 30 });
+    expect(DEFAULT_SETTINGS.queueRefresh).toEqual({
+      enabled: false,
+      intervalSec: 30,
+      queue: {
+        codAcaoDestino: 5,
+        codEspecialidade: 15,
+        indSituacao: 1,
+        label: 'PRONTO ATENDIMENTO - MEDICINA INTERNA / CLINICA GERAL',
+      },
+    });
     expect(DEFAULT_SETTINGS.autoLogin).toEqual({ enabled: false });
   });
 

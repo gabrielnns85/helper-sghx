@@ -7,10 +7,23 @@ const jsonCopy = (value) => (value === undefined ? undefined : JSON.parse(JSON.s
 /**
  * Área do chrome.storage em memória (local ou session), com API de Promise.
  * `failNext('get' | 'set' | 'remove', error)` faz a próxima chamada rejeitar.
+ * Com `onChanged` (createFakeEvent), set/remove disparam o evento como o Chrome:
+ * `({ chave: { oldValue, newValue } }, areaName)`.
  */
-export function createFakeArea(initial = {}) {
+export function createFakeArea(initial = {}, { onChanged, areaName = 'local' } = {}) {
   let data = jsonCopy(initial);
   const failures = new Map();
+
+  const notify = (before) => {
+    if (!onChanged) return;
+    const keys = new Set([...Object.keys(before), ...Object.keys(data)]);
+    const changes = Object.fromEntries(
+      [...keys]
+        .filter((k) => JSON.stringify(before[k]) !== JSON.stringify(data[k]))
+        .map((k) => [k, { oldValue: jsonCopy(before[k]), newValue: jsonCopy(data[k]) }]),
+    );
+    if (Object.keys(changes).length > 0) onChanged.emit(changes, areaName);
+  };
 
   const maybeFail = (method) => {
     if (!failures.has(method)) return;
@@ -31,12 +44,16 @@ export function createFakeArea(initial = {}) {
     }),
     set: vi.fn(async (items) => {
       maybeFail('set');
+      const before = data;
       data = { ...data, ...jsonCopy(items) };
+      notify(before);
     }),
     remove: vi.fn(async (keys) => {
       maybeFail('remove');
       const drop = new Set(keysOf(keys));
+      const before = data;
       data = Object.fromEntries(Object.entries(data).filter(([k]) => !drop.has(k)));
+      notify(before);
     }),
     failNext(method, error = new Error(`falha simulada em ${method}`)) {
       failures.set(method, error);
