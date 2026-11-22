@@ -1,3 +1,4 @@
+import { createSerialQueue } from './serial.js';
 import { assertKey, assertStorable, deepFreeze } from './values.js';
 
 /**
@@ -43,14 +44,7 @@ function withoutTab(state, tabId) {
  *   `area` deve ser o chrome.storage.session.
  */
 export function createSessionStore({ area, newId = () => crypto.randomUUID() }) {
-  let tail = Promise.resolve();
-
-  /** Uma operação por vez (ler → alterar → gravar). O erro chega a quem chamou pelo `result`. */
-  const serial = (task) => {
-    const result = tail.then(task);
-    tail = result.catch(() => undefined);
-    return result;
-  };
+  const serial = createSerialQueue();
 
   async function read() {
     try {
