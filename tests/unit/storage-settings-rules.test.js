@@ -1,22 +1,17 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import {
-  MAX_INTERVAL_SEC,
-  MIN_INTERVAL_SEC,
-  SUPPORTED_COD_FCES,
-  validateSetting,
-} from '../../src/core/storage/settings-rules.js';
+import { MAX_INTERVAL_SEC, MIN_INTERVAL_SEC, validateSetting } from '../../src/core/storage/settings-rules.js';
 import { DEFAULT_SETTINGS } from '../../src/core/storage/defaults.js';
+import { NO_QUEUE } from '../../src/core/catalog.js';
 
-const queueRefresh = (patch = {}) => ({ ...DEFAULT_SETTINGS.queueRefresh, ...patch });
-const queue = (patch = {}) => queueRefresh({ queue: { ...DEFAULT_SETTINGS.queueRefresh.queue, ...patch } });
+const PEDIATRIA = Object.freeze({ codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 1 });
+const queueRefresh = (patch = {}) => ({ ...DEFAULT_SETTINGS.queueRefresh, queue: PEDIATRIA, ...patch });
 const paths = (errors) => errors.map((e) => e.path);
 
 describe('limites', () => {
-  it('intervalo de 30 s a 360 s; só a UPA Jaçanã (CodFces 28) por enquanto', () => {
+  it('intervalo de 30 s a 360 s', () => {
     expect(MIN_INTERVAL_SEC).toBe(30);
     expect(MAX_INTERVAL_SEC).toBe(360);
-    expect(SUPPORTED_COD_FCES).toEqual([28]);
   });
 });
 
@@ -41,31 +36,42 @@ describe('validateSetting', () => {
     expect(errors[0].message).toMatch(/30.*360/);
   });
 
+  it('fila conhecida é aceita, ligada ou desligada', () => {
+    expect(validateSetting('queueRefresh', queueRefresh({ enabled: true }))).toEqual([]);
+    expect(validateSetting('queueRefresh', queueRefresh({ enabled: false }))).toEqual([]);
+  });
+
+  it('sem fila escolhida, a atualização pode ficar desligada', () => {
+    expect(validateSetting('queueRefresh', queueRefresh({ enabled: false, queue: NO_QUEUE }))).toEqual([]);
+  });
+
+  it('sem fila escolhida, não deixa ligar a atualização (evita olhar a fila errada)', () => {
+    const errors = validateSetting('queueRefresh', queueRefresh({ enabled: true, queue: NO_QUEUE }));
+    expect(paths(errors)).toEqual(['queueRefresh.queue']);
+    expect(errors[0].message).toMatch(/escolha a fila/i);
+  });
+
   it.each([
-    ['codAcaoDestino zero', { codAcaoDestino: 0 }, 'queueRefresh.queue.codAcaoDestino'],
-    ['codAcaoDestino fracionado', { codAcaoDestino: 5.5 }, 'queueRefresh.queue.codAcaoDestino'],
-    ['codEspecialidade negativa', { codEspecialidade: -1 }, 'queueRefresh.queue.codEspecialidade'],
-    ['indSituacao negativa', { indSituacao: -1 }, 'queueRefresh.queue.indSituacao'],
-    ['nome da fila vazio', { label: '   ' }, 'queueRefresh.queue.label'],
-    ['nome da fila longo demais', { label: 'X'.repeat(121) }, 'queueRefresh.queue.label'],
-  ])('recusa fila com %s', (_caso, patch, path) => {
-    expect(paths(validateSetting('queueRefresh', queue(patch)))).toEqual([path]);
+    ['desconhecida', { codAcaoDestino: 99, codEspecialidade: 0, indSituacao: 0 }],
+    ['de já atendidos', { codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 3 }],
+    ['com código gigante', { codAcaoDestino: 1e300, codEspecialidade: 36, indSituacao: 1 }],
+  ])('recusa fila %s', (_caso, queue) => {
+    const errors = validateSetting('queueRefresh', queueRefresh({ queue }));
+    expect(paths(errors)).toEqual(['queueRefresh.queue']);
+    expect(errors[0].message).toMatch(/não reconhecida/i);
   });
 
-  it('aceita fila sem especialidade (codEspecialidade 0, ex.: acolhimento)', () => {
-    expect(validateSetting('queueRefresh', queue({ codEspecialidade: 0, indSituacao: 0 }))).toEqual([]);
+  it('aceita a unidade conhecida e recusa as outras', () => {
+    expect(validateSetting('unit', { codFces: 28 })).toEqual([]);
+    expect(paths(validateSetting('unit', { codFces: 2 }))).toEqual(['unit.codFces']);
   });
+});
 
-  it.each([
-    ['nome vazio', { name: '  ', codFces: 28 }, 'unit.name'],
-    ['nome longo demais', { name: 'X'.repeat(101), codFces: 28 }, 'unit.name'],
-    ['unidade não suportada', { name: 'OUTRA', codFces: 2 }, 'unit.codFces'],
-  ])('recusa unidade com %s', (_caso, unit, path) => {
-    expect(paths(validateSetting('unit', unit))).toEqual([path]);
-  });
-
-  it('junta todos os erros da mesma configuração', () => {
-    const errors = validateSetting('unit', { name: '', codFces: 1 });
-    expect(paths(errors)).toEqual(['unit.name', 'unit.codFces']);
+describe('nenhuma configuração dispensa a confirmação do médico', () => {
+  it('não existe opção de salvar, assinar ou enviar automaticamente no prontuário', () => {
+    const allKeys = (obj, prefix = '') =>
+      Object.entries(obj).flatMap(([k, v]) =>
+        v && typeof v === 'object' ? [`${prefix}${k}`, ...allKeys(v, `${prefix}${k}.`)] : [`${prefix}${k}`]);
+    expect(allKeys(DEFAULT_SETTINGS).filter((k) => /auto(save|submit|sign|confirm)|skipConfirm/i.test(k))).toEqual([]);
   });
 });

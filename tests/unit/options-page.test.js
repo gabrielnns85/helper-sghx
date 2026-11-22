@@ -4,27 +4,36 @@ import { join } from 'node:path';
 import { initOptionsPage } from '../../src/options/page.js';
 import { createSettings } from '../../src/core/storage/settings.js';
 import { DEFAULT_SETTINGS } from '../../src/core/storage/defaults.js';
-import { createFakeArea } from '../helpers/fake-chrome.js';
+import { createFakeArea, createFakeEvent } from '../helpers/fake-chrome.js';
 
 // import.meta.dirname: no jsdom o URL global não aceita file://.
 const HTML = readFileSync(join(import.meta.dirname, '..', '..', 'src', 'options', 'options.html'), 'utf8');
 const page = new DOMParser().parseFromString(HTML, 'text/html');
 
+const PEDIATRIA = { codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 1 };
+
 let area;
+let onChanged;
 let settings;
+let confirm;
 let options;
 
 const $ = (selector) => document.querySelector(selector);
 const field = (name) => $(`[name="${name}"]`);
 const errorFor = (name) => $(`[data-error-for="${name}"]`);
 const status = () => $('#status');
+const saveButton = () => $('#settings-form button[type="submit"]');
 
-beforeEach(async () => {
+async function open(initial = {}) {
   document.body.innerHTML = page.body.innerHTML;
-  area = createFakeArea();
-  settings = createSettings({ area, onChanged: null });
-  options = await initOptionsPage({ settings, root: document });
-});
+  onChanged = createFakeEvent();
+  area = createFakeArea(initial, { onChanged, areaName: 'local' });
+  settings = createSettings({ area, onChanged });
+  confirm = vi.fn(() => true);
+  options = await initOptionsPage({ settings, root: document, confirm });
+}
+
+beforeEach(() => open());
 
 afterEach(() => {
   document.body.innerHTML = '';
@@ -54,19 +63,25 @@ describe('options.html', () => {
   it('status com aria-live, para leitor de tela', () => {
     expect(page.querySelector('#status').getAttribute('aria-live')).toBe('polite');
   });
+
+  it('login automático avisa para não usar em computador compartilhado', () => {
+    expect(page.querySelector('[data-setting="autoLogin"]').textContent).toMatch(/compartilhado/i);
+  });
 });
 
 describe('ao abrir', () => {
-  it('preenche os campos com os padrões', () => {
+  it('preenche os campos com os padrões: automações desligadas e nenhuma fila escolhida', () => {
     expect(field('autoLoginEnabled').checked).toBe(false);
     expect(field('queueRefreshEnabled').checked).toBe(false);
     expect(field('intervalSec').value).toBe('30');
-    expect(field('queue').value).toBe('5:15:1');
-    expect(field('unitName').value).toBe('UPA JACANA');
-    expect(field('codFces').value).toBe('28');
+    expect(field('queue').value).toBe('');
+    expect(field('queue').selectedOptions[0].textContent).toBe('Escolha a fila');
   });
 
-  it('CodFces aparece desabilitado (só a UPA Jaçanã por enquanto)', () => {
+  it('unidade só para leitura: nome do catálogo e CodFces 28', () => {
+    expect(field('unitName').value).toBe('UPA JACANA');
+    expect(field('unitName').readOnly).toBe(true);
+    expect(field('codFces').value).toBe('28');
     expect(field('codFces').disabled).toBe(true);
   });
 
@@ -76,29 +91,31 @@ describe('ao abrir', () => {
   });
 
   it('preenche com o que já estava salvo', async () => {
-    area = createFakeArea({ settings: { autoLogin: { enabled: true } } });
-    settings = createSettings({ area, onChanged: null });
-    await initOptionsPage({ settings, root: document });
+    await open({ settings: { autoLogin: { enabled: true }, queueRefresh: { enabled: true, intervalSec: 60, queue: PEDIATRIA } } });
     expect(field('autoLoginEnabled').checked).toBe(true);
+    expect(field('queue').value).toBe('5:36:1');
+    expect(field('queue').selectedOptions[0].textContent).toMatch(/PEDIATRIA/);
   });
 
-  it('nomes de fila entram como texto, nunca como HTML', async () => {
-    const queue = { codAcaoDestino: 99, codEspecialidade: 0, indSituacao: 0, label: '<img src=x onerror=alert(1)>' };
-    area = createFakeArea({ settings: { queueRefresh: { ...DEFAULT_SETTINGS.queueRefresh, queue } } });
-    settings = createSettings({ area, onChanged: null });
-    await initOptionsPage({ settings, root: document });
-    expect(field('queue').value).toBe('99:0:0');
-    expect(field('queue').querySelector('img')).toBeNull();
-    expect(field('queue').selectedOptions[0].textContent).toBe(queue.label);
+  it('falha ao ler o armazenamento: avisa e não deixa salvar nem restaurar por cima', async () => {
+    document.body.innerHTML = page.body.innerHTML;
+    area = createFakeArea();
+    area.failNext('get');
+    await initOptionsPage({ settings: createSettings({ area, onChanged: null }), root: document, confirm: vi.fn() });
+    expect(status().textContent).toMatch(/não foi possível ler/i);
+    expect(status().dataset.kind).toBe('error');
+    expect(saveButton().disabled).toBe(true);
+    expect($('#restore-defaults').disabled).toBe(true);
   });
 });
 
 describe('salvar', () => {
   it('grava as configurações e avisa', async () => {
     field('queueRefreshEnabled').checked = true;
+    field('queue').value = '5:36:1';
     field('intervalSec').value = '60';
     await options.save();
-    expect(await settings.get('queueRefresh')).toEqual({ ...DEFAULT_SETTINGS.queueRefresh, enabled: true, intervalSec: 60 });
+    expect(await settings.get('queueRefresh')).toEqual({ enabled: true, intervalSec: 60, queue: PEDIATRIA });
     expect(status().textContent).toMatch(/salvas/i);
     expect(status().dataset.kind).toBe('ok');
   });
@@ -107,6 +124,14 @@ describe('salvar', () => {
     field('autoLoginEnabled').checked = true;
     $('#settings-form').requestSubmit();
     await vi.waitFor(async () => expect(await settings.get('autoLogin')).toEqual({ enabled: true }));
+  });
+
+  it('ligar a atualização sem escolher a fila: erro no campo da fila e nada gravado', async () => {
+    field('queueRefreshEnabled').checked = true;
+    await options.save();
+    expect(area.set).not.toHaveBeenCalled();
+    expect(errorFor('queue').textContent).toMatch(/escolha a fila/i);
+    expect(field('queue').getAttribute('aria-invalid')).toBe('true');
   });
 
   it('campo inválido: mostra o erro no campo e não grava nada', async () => {
@@ -135,14 +160,31 @@ describe('salvar', () => {
   });
 });
 
+describe('mudança feita em outra aba', () => {
+  it('atualiza os campos sozinha, para não salvar por cima com a tela velha', async () => {
+    await settings.set({ autoLogin: { enabled: true } }); // como se fosse outra aba
+    await vi.waitFor(() => expect(field('autoLoginEnabled').checked).toBe(true));
+  });
+});
+
 describe('restaurar padrões', () => {
-  it('apaga o que foi salvo e recarrega os campos', async () => {
+  it('pede confirmação, apaga o que foi salvo e recarrega os campos', async () => {
     field('intervalSec').value = '90';
     await options.save();
     await options.restoreDefaults();
+    expect(confirm).toHaveBeenCalledWith(expect.stringMatching(/restaurar/i));
     expect(area.dump()).toEqual({});
     expect(field('intervalSec').value).toBe('30');
     expect(status().textContent).toMatch(/padrões restaurados/i);
+  });
+
+  it('se o médico cancelar, nada muda', async () => {
+    field('intervalSec').value = '90';
+    await options.save();
+    confirm.mockReturnValue(false);
+    await options.restoreDefaults();
+    expect(await settings.get('queueRefresh')).toMatchObject({ intervalSec: 90 });
+    expect(field('intervalSec').value).toBe('90');
   });
 
   it('o botão Restaurar padrões funciona', async () => {
