@@ -1,5 +1,6 @@
 // Controlador da página de opções (#8): preenche o formulário, salva, restaura os
-// padrões e mostra os erros. Recebe `settings` e `root` para poder ser testado no jsdom.
+// padrões e mostra os erros. Recebe `settings`, `root` e `confirm` para poder ser
+// testado no jsdom.
 import { fieldForPath, formToSettings, queueOptions, settingsToForm } from './form.js';
 
 const CHECKBOXES = Object.freeze(['autoLoginEnabled', 'queueRefreshEnabled']);
@@ -9,6 +10,8 @@ const MESSAGES = Object.freeze({
   saved: 'Configurações salvas. Já valem nas abas abertas do SGHx.',
   restored: 'Padrões restaurados.',
   invalid: 'Corrija os campos destacados. Nada foi salvo.',
+  confirmRestore: 'Restaurar os padrões? Todas as suas configurações serão apagadas e as automações desligadas.',
+  loadFailed: 'Recarregue a página antes de mudar algo, para não apagar o que já está salvo.',
 });
 
 const fieldOf = (form, name) => form.elements.namedItem(name);
@@ -18,20 +21,20 @@ function showStatus(statusEl, kind, text) {
   statusEl.textContent = text;
 }
 
-/** Preenche o formulário e devolve as filas mostradas no select. */
-function fillForm(form, all) {
-  const queues = queueOptions(all.queueRefresh.queue);
-  const options = queues.map(({ value, label }) => {
+function renderQueueOptions(form) {
+  const options = queueOptions().map(({ value, label }) => {
     const option = form.ownerDocument.createElement('option');
     option.value = value;
     option.textContent = label; // texto, nunca HTML
     return option;
   });
   fieldOf(form, 'queue').replaceChildren(...options);
+}
+
+function fillForm(form, all) {
   const values = settingsToForm(all);
   CHECKBOXES.forEach((name) => { fieldOf(form, name).checked = values[name]; });
   TEXT_FIELDS.forEach((name) => { fieldOf(form, name).value = values[name]; });
-  return queues;
 }
 
 const readValues = (form) => ({
@@ -54,18 +57,27 @@ function showErrors(form, errors) {
   }
 }
 
+/** Sem ler o que está salvo, salvar ou restaurar apagaria tudo: trava os botões. */
+function lockForm(form) {
+  form.querySelectorAll('button').forEach((button) => { button.disabled = true; });
+}
+
 /**
- * @param {{ settings: ReturnType<import('../core/storage/settings.js').createSettings>, root?: Document }} opts
+ * @param {{
+ *   settings: ReturnType<import('../core/storage/settings.js').createSettings>,
+ *   root?: Document,
+ *   confirm?: (message: string) => boolean,
+ * }} opts
  * @returns {Promise<{ save: () => Promise<void>, restoreDefaults: () => Promise<void> }>}
  */
-export async function initOptionsPage({ settings, root = document }) {
+export async function initOptionsPage({ settings, root = document, confirm = (m) => root.defaultView.confirm(m) }) {
   const form = root.querySelector('#settings-form');
   const statusEl = root.querySelector('#status');
-  let shownQueues = fillForm(form, await settings.get());
+  renderQueueOptions(form);
 
   async function save() {
     clearErrors(form);
-    const { settings: next, errors } = formToSettings(readValues(form), shownQueues);
+    const { settings: next, errors } = formToSettings(readValues(form));
     if (errors.length > 0) {
       showErrors(form, errors);
       showStatus(statusEl, 'error', MESSAGES.invalid);
@@ -80,10 +92,11 @@ export async function initOptionsPage({ settings, root = document }) {
   }
 
   async function restoreDefaults() {
+    if (!confirm(MESSAGES.confirmRestore)) return;
     clearErrors(form);
     try {
       await settings.reset();
-      shownQueues = fillForm(form, await settings.get());
+      fillForm(form, await settings.load());
       showStatus(statusEl, 'ok', MESSAGES.restored);
     } catch (err) {
       showStatus(statusEl, 'error', err.message);
@@ -95,5 +108,15 @@ export async function initOptionsPage({ settings, root = document }) {
     save();
   });
   root.querySelector('#restore-defaults').addEventListener('click', () => restoreDefaults());
+
+  try {
+    fillForm(form, await settings.load());
+  } catch (err) {
+    lockForm(form);
+    showStatus(statusEl, 'error', `${err.message}. ${MESSAGES.loadFailed}`);
+    return { save, restoreDefaults };
+  }
+  // Mudança feita em outra aba: atualiza a tela para não salvar por cima com valores velhos.
+  settings.subscribe((all) => fillForm(form, all));
   return { save, restoreDefaults };
 }

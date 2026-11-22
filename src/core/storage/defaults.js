@@ -1,3 +1,4 @@
+import { NO_QUEUE } from '../catalog.js';
 import { deepFreeze } from './values.js';
 
 /**
@@ -7,23 +8,14 @@ import { deepFreeze } from './values.js';
  * Senhas NÃO entram aqui: vão para o cofre (#64).
  */
 export const DEFAULT_SETTINGS = deepFreeze({
-  /** Unidade de saúde (skill sghx: CodFces 28 = UPA JACANA). */
-  unit: { name: 'UPA JACANA', codFces: 28 },
+  /** Unidade de saúde: só o código; o nome vem de src/core/catalog.js (CodFces 28 = UPA JACANA). */
+  unit: { codFces: 28 },
   /**
-   * Atualização automática da fila (#13/#14). `queue` identifica a categoria da fila
-   * como o SGHx (skill sghx › Fila): CodAcaoDestino 5 = Pronto Atendimento,
-   * especialidade 15 = Medicina Interna/Clínica, situação 1 = aguardando.
+   * Atualização automática da fila (#13/#14). `queue` guarda só os códigos da categoria
+   * (skill sghx › Fila). Começa sem fila: o médico escolhe antes de ligar, para não
+   * acompanhar a fila errada sem perceber.
    */
-  queueRefresh: {
-    enabled: false,
-    intervalSec: 30,
-    queue: {
-      codAcaoDestino: 5,
-      codEspecialidade: 15,
-      indSituacao: 1,
-      label: 'PRONTO ATENDIMENTO - MEDICINA INTERNA / CLINICA GERAL',
-    },
-  },
+  queueRefresh: { enabled: false, intervalSec: 30, queue: { ...NO_QUEUE } },
   /** Login automático no SGHx (#10/#11). */
   autoLogin: { enabled: false },
 });

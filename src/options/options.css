@@ -70,6 +70,17 @@ input:disabled {
   margin: 4px 0 0;
 }
 
+.warning {
+  border-left: 3px solid #b26a00;
+  padding: 4px 8px;
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+}
+
+input[readonly] {
+  opacity: 0.7;
+}
+
 .error {
   color: var(--error);
   font-size: 0.85rem;
