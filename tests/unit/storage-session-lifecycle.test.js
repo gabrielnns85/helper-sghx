@@ -40,10 +40,12 @@ const setVisibility = (state) => Object.defineProperty(document, 'visibilityStat
 
 let stop;
 let session;
+let hasFocus;
 
 beforeEach(() => {
   session = fakeSession();
   setVisibility('visible');
+  hasFocus = vi.spyOn(document, 'hasFocus').mockReturnValue(true);
 });
 
 afterEach(() => {
@@ -98,36 +100,65 @@ describe('bindSessionToScreen: mudanças de tela', () => {
     expect(session.clear).not.toHaveBeenCalled();
   });
 
-  it('tela desconhecida (ex.: sessão expirada) não apaga', () => {
+  it('modal desconhecido sobre a consulta (ex.: sessão expirada) não apaga', () => {
     const screen = fakeScreen(CONSULTA);
     stop = bindSessionToScreen({ session, screen });
-    screen.go(UNKNOWN);
+    screen.go(screenOf('fila', 'consulta', 'unknown'));
     expect(session.clear).not.toHaveBeenCalled();
+  });
+
+  it('saiu da consulta para qualquer outra tela (ex.: modal não mapeado sobre a fila) apaga', () => {
+    const screen = fakeScreen(CONSULTA);
+    stop = bindSessionToScreen({ session, screen });
+    screen.go(screenOf('fila', 'unknown'));
+    expect(session.clear).toHaveBeenCalledTimes(1);
+    screen.go(UNKNOWN);
+    expect(session.start).toHaveBeenCalledTimes(1);
+  });
+
+  it('entrar na consulta numa aba sem foco abre o atendimento sem torná-lo ativo', () => {
+    hasFocus.mockReturnValue(false);
+    const screen = fakeScreen(FILA);
+    stop = bindSessionToScreen({ session, screen });
+    screen.go(CONSULTA);
+    expect(session.start).toHaveBeenLastCalledWith({ activate: false });
+    hasFocus.mockReturnValue(true);
+    screen.go(FILA);
+    screen.go(CONSULTA);
+    expect(session.start).toHaveBeenLastCalledWith({ activate: true });
   });
 });
 
 describe('bindSessionToScreen: aba em uso e saída da página', () => {
-  it('aba voltando a ficar visível na consulta assume o atendimento ativo', () => {
-    stop = bindSessionToScreen({ session, screen: fakeScreen(CONSULTA) });
-    document.dispatchEvent(new Event('visibilitychange'));
-    expect(session.claim).toHaveBeenCalledTimes(1);
-  });
-
-  it('foco na janela da consulta assume o atendimento ativo', () => {
+  it('foco na janela do SGHx assume o atendimento ativo', () => {
     stop = bindSessionToScreen({ session, screen: fakeScreen(CONSULTA) });
     window.dispatchEvent(new Event('focus'));
     expect(session.claim).toHaveBeenCalledTimes(1);
   });
 
-  it('aba escondida ou fora da consulta não assume', () => {
-    const screen = fakeScreen(CONSULTA);
-    stop = bindSessionToScreen({ session, screen });
-    setVisibility('hidden');
+  it('aba do SGHx na fila em uso também assume (o worker tira o ativo de outra aba)', () => {
+    stop = bindSessionToScreen({ session, screen: fakeScreen(FILA) });
+    window.dispatchEvent(new Event('focus'));
+    expect(session.claim).toHaveBeenCalledTimes(1);
+  });
+
+  it('só ficar visível, sem interação (janela da frente fechou), não assume', () => {
+    hasFocus.mockReturnValue(false);
+    stop = bindSessionToScreen({ session, screen: fakeScreen(CONSULTA) });
     document.dispatchEvent(new Event('visibilitychange'));
-    setVisibility('visible');
-    screen.go(FILA);
     window.dispatchEvent(new Event('focus'));
     expect(session.claim).not.toHaveBeenCalled();
+  });
+
+  it.each(['pointerdown', 'keydown'])('%s na página assume uma vez até a janela perder o foco', (type) => {
+    stop = bindSessionToScreen({ session, screen: fakeScreen(CONSULTA) });
+    document.body.dispatchEvent(new Event(type, { bubbles: true }));
+    document.body.dispatchEvent(new Event(type, { bubbles: true }));
+    expect(session.claim).toHaveBeenCalledTimes(1);
+
+    window.dispatchEvent(new Event('blur'));
+    document.body.dispatchEvent(new Event(type, { bubbles: true }));
+    expect(session.claim).toHaveBeenCalledTimes(2);
   });
 
   it('saindo da página (logout, F5, navegar) apaga', () => {
@@ -155,6 +186,7 @@ describe('bindSessionToScreen: aba em uso e saída da página', () => {
     screen.go(FILA);
     window.dispatchEvent(new Event('pagehide'));
     window.dispatchEvent(new Event('focus'));
+    document.body.dispatchEvent(new Event('pointerdown', { bubbles: true }));
     expect(screen.listenerCount()).toBe(0);
     expect(session.clear).not.toHaveBeenCalled();
     expect(session.claim).not.toHaveBeenCalled();

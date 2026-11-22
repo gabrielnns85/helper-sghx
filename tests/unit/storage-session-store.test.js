@@ -110,6 +110,46 @@ describe('createSessionStore: atendimento por aba do SGHx', () => {
     await expect(store.set({ tabId: SGHX_TAB }, key, value)).rejects.toThrow(TypeError);
   });
 
+  it('claim() de aba sem atendimento (SGHx na fila em uso) tira o ativo de outra aba', async () => {
+    await store.start(SGHX_TAB);
+    expect(await store.claim(OTHER_SGHX_TAB)).toBeNull();
+    expect(await store.current({ active: true })).toBeNull();
+    expect(await store.current({ tabId: SGHX_TAB })).not.toBeNull();
+  });
+
+  it('start(tab, { activate: false }) abre o atendimento sem roubar o ativo (aba em segundo plano)', async () => {
+    const a = await store.start(SGHX_TAB);
+    await store.start(OTHER_SGHX_TAB, { activate: false });
+    expect(await store.current({ active: true })).toEqual({ id: a.id });
+    expect(await store.current({ tabId: OTHER_SGHX_TAB })).not.toBeNull();
+  });
+
+  it('get() com { expectId } de outro atendimento rejeita (lê o paciente certo ou nada)', async () => {
+    const a = await store.start(SGHX_TAB);
+    await store.set({ tabId: SGHX_TAB }, 'paciente', { nome: 'A' });
+    expect(await store.get({ active: true }, 'paciente', { expectId: a.id })).toEqual({ nome: 'A' });
+    await store.start(OTHER_SGHX_TAB);
+    await expect(store.get({ active: true }, 'paciente', { expectId: a.id })).rejects.toThrow(/atendimento mudou/i);
+  });
+
+  it('get() com { expectId } sem atendimento rejeita', async () => {
+    await expect(store.get({ active: true }, 'x', { expectId: 'qualquer' })).rejects.toThrow(/sem atendimento ativo/i);
+  });
+
+  it('chaves herdadas não vazam nem congelam o Object.prototype do worker', async () => {
+    await store.start(SGHX_TAB);
+    expect(await store.get({ tabId: SGHX_TAB }, 'constructor')).toBeUndefined();
+    expect(await store.get({ tabId: SGHX_TAB }, 'toString')).toBeUndefined();
+    await expect(store.get({ tabId: SGHX_TAB }, '__proto__')).rejects.toThrow(TypeError);
+    await expect(store.set({ tabId: SGHX_TAB }, '__proto__', {})).rejects.toThrow(TypeError);
+    expect(Object.isFrozen(Object.prototype)).toBe(false);
+  });
+
+  it('set() recusa valor grande demais (cota do storage.session é da extensão inteira)', async () => {
+    await store.start(SGHX_TAB);
+    await expect(store.set({ tabId: SGHX_TAB }, 'x', 'a'.repeat(2_000_000))).rejects.toThrow(/grande demais/i);
+  });
+
   it('o estado fica no chrome.storage.session: um store novo (worker reiniciado) continua vendo', async () => {
     const { id } = await store.start(SGHX_TAB);
     await store.set({ tabId: SGHX_TAB }, 'cid', 'J06.9');

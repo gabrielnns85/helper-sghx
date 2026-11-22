@@ -20,6 +20,7 @@ describe('siteForUrl', () => {
     ['sem TLS', 'http://laudos.mobilemed.com.br/'],
     ['outra porta', 'https://www.siresp.saude.sp.gov.br:8443/'],
     ['subdomínio não previsto', 'https://outro.mobilemed.com.br/'],
+    ['Lisnet fora de /laudos/', 'https://biomega.lisnet.com.br/admin/'],
     ['site qualquer', 'https://example.com/'],
     ['URL inválida', 'não é url'],
     ['vazio', undefined],
