@@ -14,6 +14,8 @@ import { assertKey, assertStorable, deepFreeze } from './values.js';
 const STATE_KEY = 'atendimentos';
 const EMPTY_STATE = Object.freeze({ activeTabId: null, byTab: Object.freeze({}) });
 const CONTEXT = 'Sessão do atendimento';
+/** Limite por valor (em caracteres de JSON): a cota do storage.session é da extensão inteira. */
+const MAX_VALUE_CHARS = 1_000_000;
 
 /**
  * @typedef {{ tabId: number } | { active: true }} Scope
@@ -33,6 +35,20 @@ const entryOf = (state, scope) => {
   return tabId == null ? null : (state.byTab[tabId] ?? null);
 };
 const summary = (entry) => (entry ? Object.freeze({ id: entry.id }) : null);
+
+/** Recusa quando não há atendimento ou quando ele não é mais o esperado (`expectId`). */
+function assertExpected(entry, expectId) {
+  if (!entry) throw new Error(`${CONTEXT}: sem atendimento ativo`);
+  if (expectId !== undefined && expectId !== entry.id) {
+    throw new Error(`${CONTEXT}: o atendimento mudou; nada foi lido nem gravado`);
+  }
+}
+
+function assertSize(value) {
+  if (JSON.stringify(value).length > MAX_VALUE_CHARS) {
+    throw new RangeError(`${CONTEXT}: valor grande demais (máx. ${MAX_VALUE_CHARS} caracteres)`);
+  }
+}
 
 function withoutTab(state, tabId) {
   const byTab = Object.fromEntries(Object.entries(state.byTab).filter(([tab]) => tab !== String(tabId)));
@@ -64,25 +80,32 @@ export function createSessionStore({ area, newId = () => crypto.randomUUID() }) 
   }
 
   return {
-    /** Abre um atendimento novo na aba (descarta o anterior dela) e o torna o ativo. */
-    start(tabId) {
+    /**
+     * Abre um atendimento novo na aba (descarta o anterior dela). Com `activate`
+     * (padrão), ele vira o ativo; aba sem foco passa `false` para não roubar o ativo.
+     */
+    start(tabId, { activate = true } = {}) {
       assertTabId(tabId);
       return serial(async () => {
         const state = await read();
         const entry = { id: newId(), data: {} };
-        await write({ activeTabId: tabId, byTab: { ...state.byTab, [tabId]: entry } });
+        const activeTabId = activate ? tabId : state.activeTabId;
+        await write({ activeTabId, byTab: { ...state.byTab, [tabId]: entry } });
         return summary(entry);
       });
     },
 
-    /** Torna ativo o atendimento da aba; aba sem atendimento não muda nada (null). */
+    /**
+     * A aba do SGHx entrou em uso: o atendimento dela vira o ativo. Aba sem
+     * atendimento (ex.: na fila) deixa o navegador sem ativo e devolve null.
+     */
     claim(tabId) {
       assertTabId(tabId);
       return serial(async () => {
         const state = await read();
-        const entry = state.byTab[tabId];
-        if (!entry) return null;
-        if (state.activeTabId !== tabId) await write({ ...state, activeTabId: tabId });
+        const entry = state.byTab[tabId] ?? null;
+        const activeTabId = entry ? tabId : null;
+        if (state.activeTabId !== activeTabId) await write({ ...state, activeTabId });
         return summary(entry);
       });
     },
@@ -102,10 +125,19 @@ export function createSessionStore({ area, newId = () => crypto.randomUUID() }) 
       return serial(async () => summary(entryOf(await read(), scope)));
     },
 
-    /** @param {Scope} scope @param {string} key valor congelado, ou undefined */
-    async get(scope, key) {
+    /**
+     * @param {Scope} scope
+     * @param {string} key
+     * @param {{ expectId?: string }} [opts] recusa se o atendimento não for mais este
+     * @returns {Promise<unknown>} valor congelado, ou undefined
+     */
+    async get(scope, key, { expectId } = {}) {
       assertKey(key, CONTEXT);
-      return serial(async () => deepFreeze(entryOf(await read(), scope)?.data[key]));
+      return serial(async () => {
+        const entry = entryOf(await read(), scope);
+        if (expectId !== undefined) assertExpected(entry, expectId);
+        return deepFreeze(entry && Object.hasOwn(entry.data, key) ? entry.data[key] : undefined);
+      });
     },
 
     /**
@@ -117,13 +149,11 @@ export function createSessionStore({ area, newId = () => crypto.randomUUID() }) 
     async set(scope, key, value, { expectId } = {}) {
       assertKey(key, CONTEXT);
       assertStorable(value, CONTEXT);
+      assertSize(value);
       return serial(async () => {
         const state = await read();
         const entry = entryOf(state, scope);
-        if (!entry) throw new Error(`${CONTEXT}: sem atendimento ativo`);
-        if (expectId !== undefined && expectId !== entry.id) {
-          throw new Error(`${CONTEXT}: o atendimento mudou; nada foi gravado`);
-        }
+        assertExpected(entry, expectId);
         const updated = { ...entry, data: { ...entry.data, [key]: value } };
         await write({ ...state, byTab: { ...state.byTab, [tabOf(state, scope)]: updated } });
       });
