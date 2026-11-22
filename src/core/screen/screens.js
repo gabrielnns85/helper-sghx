@@ -26,11 +26,18 @@ export const PAGE_RULES = Object.freeze([
  * Modais de tela (.lightbox). Com `title`, o título do modal (.title3) também
  * precisa casar: o #ModalQuestionario é o mesmo para atestado, EMAD, resumo de alta…
  * Consulta complementar usa o mesmo #Consulta_Modal e conta como consulta.
+ * A página de login tem modais próprios (contexto, certificado, dois fatores, termo
+ * de uso…), conferidos no SGHx em 21/11/2026: todos contam como login.
  * Os submodais da prescrição (posologia, justificativa do externo) contam como
  * prescrição: são abertos pela própria automação no meio do preenchimento.
  */
 export const MODAL_RULES = Object.freeze([
-  { id: SCREEN.LOGIN, selector: '#comboEstabelecimento' },
+  {
+    id: SCREEN.LOGIN,
+    selector:
+      '#modalLogin, #modalProvedorCertificado, #modalListaCertificado, #modalAutentDoisFatores, ' +
+      '#trocarSenhaUsuario, #esqueciMinhaSenha, #termoUsoSistema, #comboEstabelecimento',
+  },
   { id: SCREEN.CONSULTA, selector: '#Consulta_Modal' },
   {
     id: SCREEN.PRESCRICAO,

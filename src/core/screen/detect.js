@@ -34,7 +34,9 @@ function pageScreenId(root) {
   return rule?.id;
 }
 
-const isScreenModal = (el) => isVisible(el) && !el.querySelector(DIALOG_MESSAGE);
+/** Pop-up = .lightbox com a própria mensagem; mensagens de pop-ups aninhados (moldes ocultos) não contam. */
+const isDialog = (lightbox) => [...lightbox.querySelectorAll(DIALOG_MESSAGE)].some((msg) => msg.closest(LIGHTBOX) === lightbox);
+const isScreenModal = (el) => isVisible(el) && !isDialog(el);
 
 /** Tira repetições seguidas: posologia sobre prescrição continua sendo uma prescrição. */
 const collapseRepeats = (ids) => ids.filter((id, i) => id !== ids[i - 1]);
