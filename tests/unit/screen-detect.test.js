@@ -10,6 +10,7 @@ describe('detectScreen: uma fixture por tela', () => {
   it.each([
     ['login', SCREEN.LOGIN, ['login']],
     ['login-contexto', SCREEN.LOGIN, ['login']],
+    ['login-certificado-nuvem', SCREEN.LOGIN, ['login']],
     ['fila-pronto-atendimento', SCREEN.FILA, ['fila']],
     ['consulta-soap', SCREEN.CONSULTA, ['fila', 'consulta']],
     ['prescricao-medicamento', SCREEN.PRESCRICAO, ['fila', 'consulta', 'prescricao']],
@@ -54,6 +55,30 @@ describe('detectScreen: regras de empilhamento', () => {
     loadFixture('consulta-soap');
     addDialog({ message: 'Deseja realmente sair sem salvar?', buttons: ['Sim', 'Não'] });
     expect(detectScreen()).toEqual({ id: SCREEN.CONSULTA, stack: ['fila', 'consulta'] });
+  });
+
+  it('pop-up aninhado dentro da consulta (molde da toolbar) não faz a consulta virar pop-up', () => {
+    loadFixture('consulta-soap');
+    const nested = document.querySelector('#ConsultaToolbar_ .lightbox');
+    expect(detectScreen().id).toBe(SCREEN.CONSULTA);
+
+    nested.style.display = 'block';
+    nested.querySelector('.bootstrap-dialog-message').textContent = 'Deseja imprimir o sumário da consulta antes de sair?';
+    expect(detectScreen()).toEqual({ id: SCREEN.CONSULTA, stack: ['fila', 'consulta'] });
+  });
+
+  it.each([
+    'modalLogin',
+    'modalProvedorCertificado',
+    'modalListaCertificado',
+    'modalAutentDoisFatores',
+    'trocarSenhaUsuario',
+    'esqueciMinhaSenha',
+    'termoUsoSistema',
+  ])('modal %s da página de login conta como login', (id) => {
+    loadFixture('login');
+    addScreenModal({ id, root: document.querySelector('.login') });
+    expect(detectScreen()).toEqual({ id: SCREEN.LOGIN, stack: ['login'] });
   });
 
   it('modal oculto não conta', () => {
