@@ -2,6 +2,8 @@
 import { createBridgeClient } from './core/bridge-client.js';
 import { createFeatureRegistry } from './features/index.js';
 import { watchScreen } from './core/screen/index.js';
+import { SITE } from './core/sites.js';
+import { bindSessionToScreen, createSessionClient, createSettings } from './core/storage/index.js';
 import { initUi } from './ui/index.js';
 
 const PING_ATTEMPTS = 3;
@@ -25,8 +27,13 @@ async function main() {
   // Tela ativa do SGHx: as funcionalidades usam screen.current() e screen.subscribe().
   const screen = watchScreen();
 
+  // Sessão do atendimento (apagada ao voltar à fila/login) e configurações do médico.
+  const session = createSessionClient();
+  const settings = createSettings();
+  bindSessionToScreen({ session, screen });
+
   initUi();
-  await features.initAll({ bridge, screen });
+  await features.initAll({ site: SITE.SGHX, bridge, screen, session, settings });
 
   try {
     const page = await pingBridge(bridge);
