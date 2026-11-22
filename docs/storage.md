@@ -65,6 +65,10 @@ foi apagado. Fora do SGHx o `expectId` é **obrigatório** e a gravação só va
 
 ## Limites conhecidos
 
+- **Conferido no SGHx (22/11/2026):** consulta normal e complementar (retorno) abrem o atendimento; voltar à fila
+  apaga. Filas de pronto atendimento só deixam um paciente aberto por vez.
+- **Sala de Observação** (`#LeitoObservacao_Modal`) ainda não é reconhecida e permite vários pacientes em abas
+  diferentes: fica para a #65 (atendimento de observação + aviso de vários pacientes abertos).
 - **Troca de paciente sem fechar o `#Consulta_Modal`** (ex.: consulta complementar reaproveitando o modal): a
   pilha de telas não muda, então o atendimento não é reaberto. Quem ler a identidade do paciente (#16) deve
   chamar `session.start()` quando ela mudar.
