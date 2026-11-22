@@ -114,10 +114,22 @@ describe('regras de valor (settings-rules.js)', () => {
 
   it('valor salvo fora das regras é ignorado com aviso e vale o padrão', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
-    area = createFakeArea({ settings: { unit: { name: 'OUTRA', codFces: 2 } } });
+    area = createFakeArea({ settings: { unit: { codFces: 2 } } });
     settings = createSettings({ area });
     expect(await settings.get('unit')).toEqual(DEFAULT_SETTINGS.unit);
     expect(warn).toHaveBeenCalled();
+  });
+});
+
+describe('settings.load (leitura que não esconde falha)', () => {
+  it('devolve o mesmo que get()', async () => {
+    await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+    expect(await settings.load()).toEqual(await settings.get());
+  });
+
+  it('falha ao ler o chrome.storage vira erro claro, em vez de padrões', async () => {
+    area.failNext('get');
+    await expect(settings.load()).rejects.toThrow(/não foi possível ler as configurações/i);
   });
 });
 
@@ -211,16 +223,11 @@ describe('settings.subscribe (mudança aplicada sem recarregar)', () => {
 
 describe('DEFAULT_SETTINGS', () => {
   it('traz os padrões do MVP já decididos nas issues', () => {
-    expect(DEFAULT_SETTINGS.unit).toEqual({ name: 'UPA JACANA', codFces: 28 });
+    expect(DEFAULT_SETTINGS.unit).toEqual({ codFces: 28 }); // nome vem do catálogo (src/core/catalog.js)
     expect(DEFAULT_SETTINGS.queueRefresh).toEqual({
       enabled: false,
       intervalSec: 30,
-      queue: {
-        codAcaoDestino: 5,
-        codEspecialidade: 15,
-        indSituacao: 1,
-        label: 'PRONTO ATENDIMENTO - MEDICINA INTERNA / CLINICA GERAL',
-      },
+      queue: { codAcaoDestino: 0, codEspecialidade: 0, indSituacao: 0 }, // nenhuma fila: o médico escolhe
     });
     expect(DEFAULT_SETTINGS.autoLogin).toEqual({ enabled: false });
   });
