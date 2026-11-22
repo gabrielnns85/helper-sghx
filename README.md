@@ -32,12 +32,15 @@ O CI (GitHub Actions) roda `npm test` e `npm run build` em todo PR e na `main`, 
 
 ### Estrutura
 
-- `src/manifest.json`: manifest MV3 (roda só em `*.smsprefeiturasp.com.br`)
-- `src/content.js`: content script no mundo isolado (UI, funcionalidades, `chrome.*`)
+- `src/manifest.json`: manifest MV3 (SGHx em `*.smsprefeiturasp.com.br` e os sites de apoio de `src/core/sites.js`)
+- `src/content.js`: content script do SGHx no mundo isolado (UI, funcionalidades, `chrome.*`)
+- `src/background.js`: service worker, dono da sessão do atendimento
+- `src/sites/external.js`: content script dos outros sites (imagens, SIRESP, laboratório), com ou sem SGHx aberto
 - `src/page-bridge.js`: ponte no mundo `MAIN` da página (Knockout/jQuery). Ver [ADR 0001](docs/adr/0001-mundo-de-execucao.md)
 - `src/core/`: infraestrutura compartilhada (protocolo e cliente da ponte)
 - `src/core/dom/`: helpers de DOM (preencher campos, aguardar elementos, pop-ups). Ver [guia](docs/dom-helpers.md)
 - `src/core/screen/`: detecção da tela ativa (login, fila, consulta, prescrição…) e evento de mudança de tela. Ver [guia](docs/screen-detection.md)
+- `src/core/storage/`: sessão do atendimento (nunca persistida) e configurações do médico. Ver [guia](docs/storage.md) e [ADR 0002](docs/adr/0002-armazenamento-sessao-configuracoes.md)
 - `src/features/`: registro das funcionalidades
 - `src/ui/`: interface (painel)
 - `tests/unit/`: testes; `tests/fixtures/`: HTML anonimizado das telas ([como capturar e anonimizar](tests/fixtures/README.md)); `tests/helpers/`: utilitários de teste
