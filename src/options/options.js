@@ -2,7 +2,12 @@
 import { createSettings } from '../core/storage/settings.js';
 import { initOptionsPage } from './page.js';
 
-initOptionsPage({ settings: createSettings(), root: document }).catch((err) => {
+async function main() {
+  // Dentro da função: até a falha de createSettings (sem chrome.storage) cai no catch abaixo.
+  await initOptionsPage({ settings: createSettings(), root: document });
+}
+
+main().catch((err) => {
   console.error('[helper-sghx] falha ao abrir a página de opções', err);
   const status = document.querySelector('#status');
   if (status) {
