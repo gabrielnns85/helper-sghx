@@ -6,7 +6,8 @@ import { join, basename } from 'node:path';
 import { unzipSync, strFromU8 } from 'fflate';
 import { build } from '../../scripts/build.mjs';
 
-const SCRIPTS = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js'];
+const SCRIPTS = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js', 'options/options.js'];
+const PAGES = ['options/options.html', 'options/options.css'];
 
 let outDir;
 let zipPath;
@@ -32,6 +33,13 @@ describe('npm run build', () => {
       expect(Object.keys(files)).toContain(s);
     }
     expect(Object.keys(files)).toContain(manifest.background.service_worker);
+    expect(Object.keys(files)).toContain(manifest.options_ui.page);
+  });
+
+  it('a página de opções leva o próprio CSS e script', () => {
+    const html = strFromU8(files['options/options.html']);
+    expect(html).toContain('href="options.css"');
+    expect(html).toContain('src="options.js"');
   });
 
   it('os scripts são autocontidos (sem import/export de ES modules)', () => {
@@ -41,6 +49,6 @@ describe('npm run build', () => {
   });
 
   it('não inclui testes, fontes de desenvolvimento nem node_modules', () => {
-    expect(Object.keys(files).sort()).toEqual([...SCRIPTS, 'manifest.json'].sort());
+    expect(Object.keys(files).sort()).toEqual([...SCRIPTS, ...PAGES, 'manifest.json'].sort());
   });
 });

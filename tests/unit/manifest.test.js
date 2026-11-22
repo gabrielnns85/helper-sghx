@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { SITES, SITE } from '../../src/core/sites.js';
 
 const manifest = JSON.parse(readFileSync(new URL('../../src/manifest.json', import.meta.url), 'utf8'));
@@ -48,6 +48,11 @@ describe('manifest.json', () => {
   it('pede só a permissão storage, sem host_permissions', () => {
     expect(manifest.permissions).toEqual(['storage']);
     expect(manifest.host_permissions ?? []).toEqual([]);
+  });
+
+  it('tem a página de opções (#8), aberta numa aba, apontando para um arquivo de src/', () => {
+    expect(manifest.options_ui).toEqual({ page: 'options/options.html', open_in_tab: true });
+    expect(existsSync(new URL(`../../src/${manifest.options_ui.page}`, import.meta.url))).toBe(true);
   });
 
   it('tem o service worker da sessão do atendimento', () => {
