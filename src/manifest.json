@@ -4,6 +4,10 @@
   "description": "Auxilia o médico no PEP SGHx (Fastmedic) das unidades da SMS-SP.",
   "version": "0.1.0",
   "minimum_chrome_version": "111",
+  "permissions": ["storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
   "content_scripts": [
     {
       "matches": ["https://*.smsprefeiturasp.com.br/*"],
@@ -14,6 +18,15 @@
     {
       "matches": ["https://*.smsprefeiturasp.com.br/*"],
       "js": ["content.js"],
+      "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://laudos.mobilemed.com.br/*",
+        "https://www.siresp.saude.sp.gov.br/*",
+        "https://biomega.lisnet.com.br/laudos/*"
+      ],
+      "js": ["sites/external.js"],
       "run_at": "document_idle"
     }
   ]

@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SRC = join(ROOT, 'src');
-const ENTRIES = ['content.js', 'page-bridge.js'];
+const ENTRIES = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js'];
 
 function esbuildOptions(extDir) {
   return {
