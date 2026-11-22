@@ -136,6 +136,15 @@ describe('bindSessionToScreen: aba em uso e saída da página', () => {
     expect(session.clear).toHaveBeenCalledTimes(1);
   });
 
+  it('voltando do cache de navegação (bfcache) na consulta reabre o atendimento', () => {
+    stop = bindSessionToScreen({ session, screen: fakeScreen(CONSULTA) });
+    session.start.mockClear();
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: false }));
+    expect(session.start).not.toHaveBeenCalled();
+    window.dispatchEvent(Object.assign(new Event('pageshow'), { persisted: true }));
+    expect(session.start).toHaveBeenCalledTimes(1);
+  });
+
   it('stop() desliga tudo', () => {
     const screen = fakeScreen(CONSULTA);
     stop = bindSessionToScreen({ session, screen });
