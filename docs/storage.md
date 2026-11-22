@@ -81,13 +81,22 @@ foi apagado. Fora do SGHx o `expectId` é **obrigatório** e a gravação só va
 
 ```js
 await settings.get();                    // padrões + salvas, congelado
-await settings.get('queueRefresh');      // { enabled, intervalSec }
-await settings.set({ queueRefresh: { enabled: true, intervalSec: 45 } });
+await settings.get('queueRefresh');      // { enabled, intervalSec, queue }
+await settings.set({ queueRefresh: { ...atual, enabled: true, intervalSec: 45 } });
+await settings.reset();                  // apaga o que foi salvo: voltam os padrões
+const parar = settings.subscribe((todas) => { /* aplica sem recarregar */ });
 ```
 
 - Cada chave substitui a anterior inteira e precisa ter **a mesma forma do padrão** (mesmas chaves, mesmos tipos).
   Chave ou campo desconhecido é recusado e nada é gravado.
-- Valor salvo inválido (versão antiga) é ignorado com aviso e vale o padrão. Falha ao ler: aviso + padrões.
-  Falha ao gravar: `Error`.
-- Opção nova entra em `defaults.js` junto com a issue que a usa. Regras finas (ex.: intervalo mínimo de 15 s)
-  e o aviso de mudança "sem recarregar" ficam com a #8.
+- **Regras de valor** em `settings-rules.js` (`validateSetting(chave, valor)` devolve os erros por campo):
+  intervalo da fila de 30 a 360 s, CodFces só 28 (UPA Jaçanã), nome da unidade e da fila não vazios, códigos da
+  fila inteiros. `set` recusa valor fora das regras; a página de opções mostra o erro no campo.
+- Valor salvo inválido (versão antiga, edição manual) é ignorado com aviso e vale o padrão. Falha ao ler: aviso +
+  padrões. Falha ao gravar ou restaurar: `Error` com mensagem em português.
+- **Sem recarregar:** `subscribe` escuta `chrome.storage.onChanged` e entrega as configurações completas (padrões +
+  salvas válidas) a cada mudança, em todas as abas. Devolve a função que cancela a inscrição.
+- A fila é guardada como o SGHx a identifica: `{ codAcaoDestino, codEspecialidade, indSituacao, label }`. A página
+  de opções oferece as filas conhecidas da skill (`src/options/queues.js`); a #14 passa a listar pelo endpoint.
+- Opção nova segue o [contrato de funcionalidade](funcionalidades.md): padrão em `defaults.js`, regras em
+  `settings-rules.js` e seção na página de opções (`src/options/`).

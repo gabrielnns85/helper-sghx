@@ -41,6 +41,10 @@ A lista completa de agentes por situação está no `CLAUDE.md`. Instalação: `
   - **F2 — Lista de possibilidades**: o médico escolhe entre opções pré-definidas.
   - **F3 — Configuração**: opções editáveis na página de configuração.
   - **F4 — Botões de atalho**: múltiplos botões rápidos no painel.
+- **Contrato de funcionalidade:** opções de uma funcionalidade vão para a página de configuração (padrão em
+  `defaults.js`, regras em `settings-rules.js`, seção `data-setting` em `src/options/options.html`); toda automação
+  tem liga/desliga começando desligado; ação ou estado visível vira seção no painel (#7). Detalhes e checklist em
+  [docs/funcionalidades.md](docs/funcionalidades.md).
 - Cada fase é uma issue = um PR. Uma issue só entra em `status:ready` quando suas dependências estão fechadas.
 - Prioridade: `priority:P0` → milestone **MVP**; `P1` → **Pós-MVP**; `P2` → **Futuro**.
 
