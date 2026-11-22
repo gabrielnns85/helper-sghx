@@ -26,19 +26,19 @@ describe('createSessionClient: integração com o service worker', () => {
     await sghx.set('cid', 'J06.9');
 
     expect(await lisnet.current()).toEqual({ id });
-    expect(await lisnet.get('cid')).toBe('J06.9');
+    expect(await lisnet.get('cid', { expectId: id })).toBe('J06.9');
 
-    await lisnet.set('exames', ['hemograma'], { expectId: id });
-    expect(await sghx.get('exames')).toEqual(['hemograma']);
+    await lisnet.set('lisnet.exames', ['hemograma'], { expectId: id });
+    expect(await sghx.get('lisnet.exames')).toEqual(['hemograma']);
 
     await sghx.clear();
     expect(await lisnet.current()).toBeNull();
-    expect(await lisnet.get('cid')).toBeNull();
+    await expect(lisnet.get('cid', { expectId: id })).rejects.toThrow(/sem atendimento ativo/i);
   });
 
   it('outro site sem atendimento: current() null; set() rejeita com a mensagem do worker', async () => {
     expect(await lisnet.current()).toBeNull();
-    await expect(lisnet.set('x', 1)).rejects.toThrow(/sem atendimento ativo/i);
+    await expect(lisnet.set('lisnet.x', 1, { expectId: 'qualquer' })).rejects.toThrow(/sem atendimento ativo/i);
   });
 
   it('outro site não consegue apagar nem abrir atendimento', async () => {
@@ -71,5 +71,14 @@ describe('createSessionClient: falhas de comunicação', () => {
       value: 'J06.9',
       expectId: 'abc',
     });
+  });
+
+  it('get e start enviam expectId e activate', async () => {
+    const runtime = { sendMessage: vi.fn().mockResolvedValue({ ok: true, value: null }) };
+    const client = createSessionClient({ runtime });
+    await client.get('paciente', { expectId: 'abc' });
+    await client.start({ activate: false });
+    expect(runtime.sendMessage).toHaveBeenNthCalledWith(1, expect.objectContaining({ op: 'get', key: 'paciente', expectId: 'abc' }));
+    expect(runtime.sendMessage).toHaveBeenNthCalledWith(2, expect.objectContaining({ op: 'start', activate: false }));
   });
 });
