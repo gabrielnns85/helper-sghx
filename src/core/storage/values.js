@@ -36,6 +36,7 @@ export function assertKey(key, context) {
   if (typeof key !== 'string' || key.trim() === '') {
     throw new TypeError(`${context}: a chave deve ser um texto não vazio`);
   }
+  if (key === '__proto__') throw new TypeError(`${context}: chave reservada`);
 }
 
 /** @param {string} context prefixo da mensagem de erro */

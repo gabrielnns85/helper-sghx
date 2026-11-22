@@ -11,9 +11,12 @@ const KIND = 'session';
 /** Só o site dono da sessão (SGHx) abre, assume e apaga atendimentos. */
 const OWNER_OPS = new Set(['start', 'claim', 'clear']);
 
+/** Leitura e gravação dos outros sites: sempre amarradas a um atendimento (`expectId`). */
+const ATENDIMENTO_OPS = new Set(['get', 'set']);
+
 /**
  * @param {'start' | 'claim' | 'clear' | 'current' | 'get' | 'set'} op
- * @param {{ key?: string, value?: unknown, expectId?: string }} [args]
+ * @param {{ key?: string, value?: unknown, expectId?: string, activate?: boolean }} [args]
  */
 export const sessionMessage = (op, args = {}) => ({ source: SOURCE, kind: KIND, op, ...args });
 
@@ -23,23 +26,42 @@ const isSessionMessage = (m) =>
 const fail = (error) => ({ ok: false, error });
 
 /**
+ * Regras extras para os sites que não são donos da sessão: informar o atendimento
+ * (`expectId`, obtido de current()) e gravar só nas próprias chaves (`<site>.*`),
+ * para um bug num site externo não sobrescrever a identidade do paciente.
+ * @returns {string | null} motivo da recusa
+ */
+function externalRuleViolation(site, message) {
+  if (!ATENDIMENTO_OPS.has(message.op)) return null;
+  if (typeof message.expectId !== 'string') {
+    return `O site "${site.id}" precisa informar o atendimento (expectId) para ler ou gravar`;
+  }
+  const prefix = `${site.id}.`;
+  if (message.op === 'set' && !(typeof message.key === 'string' && message.key.startsWith(prefix))) {
+    return `O site "${site.id}" só grava em chaves "${prefix}*"`;
+  }
+  return null;
+}
+
+/**
  * Valida o remetente e encaminha ao store. Aceita só content scripts desta extensão,
- * numa aba, em um site da lista (src/core/sites.js). Nunca lança: erros viram ok:false.
+ * no frame de topo de uma aba, em um site da lista (src/core/sites.js).
+ * Nunca lança: erros viram ok:false.
  *
  * @param {{ store: ReturnType<typeof import('./session-store.js').createSessionStore>, extensionId: string }} opts
  */
 export function createSessionRouter({ store, extensionId }) {
   const OPS = {
-    start: ({ tabId }) => store.start(tabId),
+    start: ({ tabId }, msg) => store.start(tabId, { activate: msg.activate !== false }),
     claim: ({ tabId }) => store.claim(tabId),
     clear: ({ tabId }) => store.clear(tabId),
     current: ({ scope }) => store.current(scope),
-    get: ({ scope }, msg) => store.get(scope, msg.key),
+    get: ({ scope }, msg) => store.get(scope, msg.key, { expectId: msg.expectId }),
     set: ({ scope }, msg) => store.set(scope, msg.key, msg.value, { expectId: msg.expectId }),
   };
 
   function authorize(sender) {
-    if (!sender || sender.id !== extensionId) return null;
+    if (!sender || sender.id !== extensionId || sender.frameId !== 0) return null;
     const tabId = sender.tab?.id;
     const siteId = siteForUrl(sender.url);
     if (!Number.isInteger(tabId) || !siteId) return null;
@@ -56,8 +78,12 @@ export function createSessionRouter({ store, extensionId }) {
       if (!isSessionMessage(message) || !Object.hasOwn(OPS, message.op)) {
         return fail('Operação desconhecida na sessão do atendimento');
       }
-      if (OWNER_OPS.has(message.op) && !caller.site.ownsSession) {
-        return fail(`Não permitido: o site "${caller.site.id}" não controla a sessão do atendimento`);
+      if (!caller.site.ownsSession) {
+        if (OWNER_OPS.has(message.op)) {
+          return fail(`Não permitido: o site "${caller.site.id}" não controla a sessão do atendimento`);
+        }
+        const violation = externalRuleViolation(caller.site, message);
+        if (violation) return fail(violation);
       }
       // O SGHx lê a própria aba; os outros sites, o atendimento ativo.
       const scope = caller.site.ownsSession ? { tabId: caller.tabId } : { active: true };

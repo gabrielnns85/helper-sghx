@@ -28,9 +28,13 @@ export function createSessionClient({ runtime = globalThis.chrome?.runtime } = {
   }
 
   return {
-    /** Só o SGHx: abre um atendimento novo nesta aba. @returns {Promise<{ id: string }>} */
-    start: () => call('start'),
-    /** Só o SGHx: esta aba passa a ser o atendimento ativo. */
+    /**
+     * Só o SGHx: abre um atendimento novo nesta aba; `activate: false` não o torna o ativo.
+     * @param {{ activate?: boolean }} [opts]
+     * @returns {Promise<{ id: string }>}
+     */
+    start: ({ activate } = {}) => call('start', activate === undefined ? {} : { activate }),
+    /** Só o SGHx: esta aba entrou em uso (o atendimento dela vira o ativo, ou nenhum). */
     claim: () => call('claim'),
     /** Só o SGHx: apaga o atendimento desta aba. */
     clear: async () => {
@@ -38,12 +42,16 @@ export function createSessionClient({ runtime = globalThis.chrome?.runtime } = {
     },
     /** @returns {Promise<{ id: string } | null>} */
     current: () => call('current'),
-    /** @param {string} key @returns {Promise<unknown>} valor congelado, ou null */
-    get: (key) => call('get', { key }),
     /**
      * @param {string} key
+     * @param {{ expectId?: string }} [opts] obrigatório fora do SGHx: id de current()
+     * @returns {Promise<unknown>} valor congelado, ou null
+     */
+    get: (key, { expectId } = {}) => call('get', expectId === undefined ? { key } : { key, expectId }),
+    /**
+     * @param {string} key fora do SGHx, só `<site>.*`
      * @param {unknown} value JSON puro
-     * @param {{ expectId?: string }} [opts] recusa se o atendimento já não for este
+     * @param {{ expectId?: string }} [opts] obrigatório fora do SGHx; recusa se o atendimento mudou
      */
     set: async (key, value, { expectId } = {}) => {
       await call('set', expectId === undefined ? { key, value } : { key, value, expectId });

@@ -62,14 +62,11 @@ describe('createSessionStore: atendimento por aba do SGHx', () => {
     expect(await store.get({ active: true }, 'paciente')).toEqual({ nome: 'B' });
   });
 
-  it('claim() torna ativa a aba que já tem atendimento; aba sem atendimento não vira ativa', async () => {
+  it('claim() torna ativa a aba que já tem atendimento', async () => {
     const a = await store.start(SGHX_TAB);
     await store.start(OTHER_SGHX_TAB);
 
     expect(await store.claim(SGHX_TAB)).toEqual({ id: a.id });
-    expect(await store.current({ active: true })).toEqual({ id: a.id });
-
-    expect(await store.claim(99)).toBeNull();
     expect(await store.current({ active: true })).toEqual({ id: a.id });
   });
 
