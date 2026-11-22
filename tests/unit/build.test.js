@@ -6,6 +6,8 @@ import { join, basename } from 'node:path';
 import { unzipSync, strFromU8 } from 'fflate';
 import { build } from '../../scripts/build.mjs';
 
+const SCRIPTS = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js'];
+
 let outDir;
 let zipPath;
 let files;
@@ -29,15 +31,16 @@ describe('npm run build', () => {
     for (const s of manifest.content_scripts.flatMap((cs) => cs.js)) {
       expect(Object.keys(files)).toContain(s);
     }
+    expect(Object.keys(files)).toContain(manifest.background.service_worker);
   });
 
   it('os scripts são autocontidos (sem import/export de ES modules)', () => {
-    for (const name of ['content.js', 'page-bridge.js']) {
+    for (const name of SCRIPTS) {
       expect(strFromU8(files[name])).not.toMatch(/^\s*(import|export)\s/m);
     }
   });
 
   it('não inclui testes, fontes de desenvolvimento nem node_modules', () => {
-    expect(Object.keys(files).sort()).toEqual(['content.js', 'manifest.json', 'page-bridge.js']);
+    expect(Object.keys(files).sort()).toEqual([...SCRIPTS, 'manifest.json'].sort());
   });
 });
