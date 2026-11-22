@@ -68,8 +68,10 @@ export function createFakeChrome() {
   };
 }
 
-/** Remetente de mensagem como o Chrome entrega ao service worker. */
-export function sender({ url, tabId = 1, id = EXTENSION_ID } = {}) {
+/** Remetente de mensagem como o Chrome entrega ao service worker. `tabId: undefined` = sem aba. */
+export function sender(opts = {}) {
+  const { url, id = EXTENSION_ID } = opts;
+  const tabId = 'tabId' in opts ? opts.tabId : 1;
   return { id, url, tab: tabId === undefined ? undefined : { id: tabId } };
 }
 
