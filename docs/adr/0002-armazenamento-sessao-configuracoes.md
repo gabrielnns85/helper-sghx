@@ -9,7 +9,8 @@
 - Dados do paciente são sensíveis e efêmeros: valem enquanto o atendimento está em tela.
 - Funcionalidades vão operar também em outros sites (imagens MobileMed, SIRESP, laboratório Biomega/Lisnet),
   sempre sobre o mesmo atendimento aberto no SGHx, mas também **sem** o SGHx aberto (login, copiar dados).
-- Pacientes internados talvez permitam dois atendimentos abertos em abas diferentes (a conferir no SGHx).
+- Filas de pronto atendimento só deixam um paciente aberto, mas a Sala de Observação permite vários pacientes em
+  abas diferentes (conferido no SGHx em 22/11/2026; suporte na #65).
 - Configurações do médico e senhas dos outros sites precisam persistir. Cada médico usa o próprio perfil do Chrome.
 
 ## Decisão
