@@ -19,10 +19,10 @@ Issue #6 · decisões em [ADR 0002](adr/0002-armazenamento-sessao-configuracoes.
 
 | id | URL | Sessão |
 |---|---|---|
-| `sghx` | `https://*.smsprefeiturasp.com.br/*` | dono: abre, assume e apaga |
-| `mobilemed` | `https://laudos.mobilemed.com.br/*` | lê e grava no atendimento ativo |
-| `siresp` | `https://www.siresp.saude.sp.gov.br/*` | lê e grava no atendimento ativo |
-| `lisnet` | `https://biomega.lisnet.com.br/laudos/*` | lê e grava no atendimento ativo |
+| `sghx` | `https://*.smsprefeiturasp.com.br/*` | dono: abre, assume e apaga; lê e grava tudo na própria aba |
+| `mobilemed` | `https://laudos.mobilemed.com.br/*` | lê o atendimento ativo; grava só em `mobilemed.*` |
+| `siresp` | `https://www.siresp.saude.sp.gov.br/*` | lê o atendimento ativo; grava só em `siresp.*` |
+| `lisnet` | `https://biomega.lisnet.com.br/laudos/*` | lê o atendimento ativo; grava só em `lisnet.*` |
 
 Os sites externos têm o próprio content script (`src/sites/external.js`), sem ponte com a página. Eles funcionam
 **com ou sem o SGHx aberto**: sem atendimento, `session.current()` é `null` e a funcionalidade roda isolada
@@ -32,26 +32,46 @@ Os sites externos têm o próprio content script (`src/sites/external.js`), sem 
 ## Sessão do atendimento
 
 ```js
-// ctx.session, em qualquer content script
-await session.current();                 // { id } ou null
+// No SGHx (ctx.session): age no atendimento da própria aba
+await session.set('paciente', { ... });  // JSON puro, até 1 MB
 await session.get('paciente');           // valor congelado, ou null
-await session.set('paciente', { ... });  // JSON puro
-await session.set('rx', laudo, { expectId: id }); // recusa se o atendimento mudou
-await session.clear();                   // só o SGHx
+
+// Nos outros sites: sempre amarrado ao atendimento lido em current()
+const atendimento = await session.current();          // { id } ou null (sem atendimento: modo isolado)
+if (atendimento) {
+  const paciente = await session.get('paciente', { expectId: atendimento.id });
+  // mostrar ao médico de quem é o atendimento ANTES de agir
+  await session.set('mobilemed.rx', laudo, { expectId: atendimento.id });
+}
 ```
 
-- **Por aba do SGHx.** Cada aba em consulta tem o próprio atendimento. O **ativo** é o da aba do SGHx usada por
-  último (ficou visível ou recebeu foco), e é ele que os outros sites enxergam. No SGHx, `get`/`set` agem sempre
-  no atendimento da própria aba.
-- **Ciclo de vida** (`bindSessionToScreen`, só no SGHx): entrar na consulta abre um atendimento com `id` novo;
-  modais dentro dela (prescrição, atestado, EMAD) não mudam nada; voltar à `fila` ou ao `login` apaga; sair da
-  página (`pagehide`) apaga; tela `unknown` (ex.: sessão expirada) não muda nada. Fechar a aba apaga
-  (`tabs.onRemoved` no worker).
+`get`/`set` com `expectId` recusam ("o atendimento mudou") se, entre `current()` e a chamada, o ativo trocou ou
+foi apagado. Fora do SGHx o `expectId` é **obrigatório** e a gravação só vale em chaves `<site>.*`.
+
+- **Por aba do SGHx.** Cada aba em consulta tem o próprio atendimento. O **ativo** é o da aba do SGHx que o
+  médico usou por último, e é ele que os outros sites enxergam. "Usou" = foco na janela (com `document.hasFocus()`),
+  clique ou tecla. Só ficar visível (a janela da frente fechou) **não** muda o ativo. Usar uma aba do SGHx fora
+  da consulta (ex.: na fila) deixa o navegador **sem** atendimento ativo.
+- **Ciclo de vida** (`bindSessionToScreen`, só no SGHx):
+  - entrar na consulta abre um atendimento com `id` novo (ativo só se a janela tiver foco);
+  - modais sobre a consulta (prescrição, atestado, EMAD, sessão expirada) não mudam nada;
+  - sair da consulta para qualquer tela (fila, login, modal não mapeado sobre a fila) apaga;
+  - sair da página (`pagehide`) apaga; voltar do bfcache refaz; fechar a aba apaga (`tabs.onRemoved` no worker).
 - **Paciente certo.** Funcionalidades em outros sites devem mostrar ao médico de qual paciente é o atendimento
-  ativo antes de agir, e gravar com `expectId` para não escrever num atendimento que mudou no meio.
-- **Remetentes.** O worker só aceita mensagens desta extensão, vindas de uma aba, de um site da lista. Só o SGHx
-  pode `start`/`claim`/`clear`.
+  ativo antes de agir, e usar sempre o `expectId` (o worker exige).
+- **Remetentes.** O worker só aceita mensagens desta extensão, do frame de topo de uma aba, de um site da lista
+  (inclusive o caminho: Lisnet só em `/laudos/`). Só o SGHx pode `start`/`claim`/`clear`.
 - **Erros** chegam como `Error` com mensagem em português; nada de dado do paciente vai para o console.
+
+## Limites conhecidos
+
+- **Troca de paciente sem fechar o `#Consulta_Modal`** (ex.: consulta complementar reaproveitando o modal): a
+  pilha de telas não muda, então o atendimento não é reaberto. Quem ler a identidade do paciente (#16) deve
+  chamar `session.start()` quando ela mudar.
+- **`pagehide` perdido** (aba travada ou descartada): o atendimento fica até a aba fechar, o navegador fechar ou
+  o SGHx carregar de novo (o content script apaga ao iniciar fora da consulta).
+- **Curinga `*.smsprefeiturasp.com.br`:** necessário para as outras unidades da SMS-SP; qualquer subdomínio
+  desse domínio é tratado como SGHx.
 
 ## Configurações
 
