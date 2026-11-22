@@ -1,0 +1,25 @@
+<!--
+  Fixture SINTÉTICA (detecção de tela, issue #5): modal "Certificado em Nuvem" aberto
+  pelo botão #loginCertificadoNuvem na tela de login. Estrutura conferida no SGHx em
+  21/11/2026. Nenhum dado real.
+-->
+<div class="login">
+  <form>
+    <input id="inputUsuario" name="usuario" type="text">
+    <input id="inputSenha" name="senha" type="password" placeholder="Senha">
+    <a href="#" class="btn">Entrar</a>
+    <a href="#" id="loginCertificado" class="btn">Certificado</a>
+    <a href="#" id="loginCertificadoNuvem" class="btn">Certificado Nuvem</a>
+  </form>
+  <div id="modalLogin" class="lightbox" style="display: none;"><div class="light-content-box -form"><h3 class="title3">Login</h3></div></div>
+  <div id="modalProvedorCertificado" class="lightbox" style="display: block;">
+    <div class="light-bg"></div>
+    <div class="light-content-box -form">
+      <div class="title-modal"><h3 class="title3">Certificado em Nuvem</h3></div>
+      <label>Provedores</label>
+      <select id="comboProvedor"><option>SAFEID</option><option>VIDAAS</option></select>
+      <a href="#" id="modalLoginEntra" class="btn entra">entrar</a>
+      <a href="#" class="btn">cancelar</a>
+    </div>
+  </div>
+</div>

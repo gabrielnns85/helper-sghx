@@ -12,10 +12,16 @@
     <div class="light-bg"></div>
     <div class="light-content-box -form">
       <div class="title-modal"><h3 class="title3">Consulta Médica</h3></div>
-      <div class="toolbar-box">
+      <div id="ConsultaToolbar_" class="toolbar-box">
         <a href="#" id="ConsultaToolbar_Pesquisar">Chamar Painel</a>
         <a href="#" id="ConsultaToolbar_Salvar">Salvar</a>
         <a href="#" id="ConsultaToolbar_Sair">Sair</a>
+        <!-- No SGHx real a toolbar da consulta traz um pop-up oculto aninhado (molde vazio). -->
+        <div class="lightbox" style="display: none;">
+          <div class="light-content-box -form"><div class="light-content modal-content">
+            <div class="modal-body"><div class="bootstrap-dialog-body"><div class="bootstrap-dialog-message"></div></div></div>
+          </div></div>
+        </div>
       </div>
       <div class="cabecalho">TESTE TESTE - 30 ANO(S)</div>
       <ul class="abas"><li id="TabPrincipalConsulta_1">Subjetivo</li><li id="TabPrincipalConsulta_10">Ferramentas do SOAP</li></ul>
