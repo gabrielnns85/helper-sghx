@@ -3,12 +3,21 @@
 import * as esbuild from 'esbuild';
 import { zipSync } from 'fflate';
 import { mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync, copyFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const SRC = join(ROOT, 'src');
-const ENTRIES = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js'];
+const ENTRIES = ['background.js', 'content.js', 'page-bridge.js', 'sites/external.js', 'options/options.js'];
+/** Copiados sem passar pelo esbuild (página de opções #8). */
+const STATIC_FILES = ['manifest.json', 'options/options.html', 'options/options.css'];
+
+function copyStatic(extDir) {
+  for (const file of STATIC_FILES) {
+    mkdirSync(dirname(join(extDir, file)), { recursive: true });
+    copyFileSync(join(SRC, file), join(extDir, file));
+  }
+}
 
 function esbuildOptions(extDir) {
   return {
@@ -42,7 +51,7 @@ export async function build({ outDir = join(ROOT, 'dist') } = {}) {
   mkdirSync(extDir, { recursive: true });
 
   await esbuild.build(esbuildOptions(extDir));
-  copyFileSync(join(SRC, 'manifest.json'), join(extDir, 'manifest.json'));
+  copyStatic(extDir);
 
   const zipPath = join(outDir, `helper-sghx-${version}.zip`);
   zipExtension(extDir, zipPath);
@@ -52,10 +61,10 @@ export async function build({ outDir = join(ROOT, 'dist') } = {}) {
 async function watch() {
   const extDir = join(ROOT, 'dist', 'extension');
   mkdirSync(extDir, { recursive: true });
-  copyFileSync(join(SRC, 'manifest.json'), join(extDir, 'manifest.json'));
+  copyStatic(extDir);
   const ctx = await esbuild.context(esbuildOptions(extDir));
   await ctx.watch();
-  console.log(`Observando src/ → ${extDir} (recarregue a extensão no navegador após mudar o manifest)`);
+  console.log(`Observando src/ → ${extDir} (manifest, HTML e CSS são copiados só ao iniciar: reinicie o watch após mudá-los)`);
 }
 
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

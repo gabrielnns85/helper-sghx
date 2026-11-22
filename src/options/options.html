@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>helper-sghx · Configurações</title>
+  <link rel="stylesheet" href="options.css">
+</head>
+<body>
+  <main>
+    <h1>helper-sghx · Configurações</h1>
+    <p class="hint">As mudanças valem nas abas abertas do SGHx assim que você salvar, sem recarregar.</p>
+
+    <form id="settings-form" novalidate>
+      <fieldset data-setting="unit">
+        <legend>Unidade de saúde</legend>
+        <label for="unitName">Nome da unidade</label>
+        <input id="unitName" name="unitName" type="text" maxlength="100" required aria-describedby="unitName-error">
+        <p class="error" id="unitName-error" data-error-for="unitName"></p>
+
+        <label for="codFces">Código da unidade (CodFces)</label>
+        <input id="codFces" name="codFces" type="text" inputmode="numeric" disabled aria-describedby="codFces-hint codFces-error">
+        <p class="hint" id="codFces-hint">Por enquanto só a UPA Jaçanã (28) é suportada.</p>
+        <p class="error" id="codFces-error" data-error-for="codFces"></p>
+      </fieldset>
+
+      <fieldset data-setting="autoLogin">
+        <legend>Login automático</legend>
+        <label class="toggle">
+          <input name="autoLoginEnabled" type="checkbox">
+          Ligar o login automático no SGHx
+        </label>
+      </fieldset>
+
+      <fieldset data-setting="queueRefresh">
+        <legend>Atualização automática da fila</legend>
+        <label class="toggle">
+          <input name="queueRefreshEnabled" type="checkbox">
+          Ligar a atualização automática da fila
+        </label>
+
+        <label for="queue">Fila a selecionar</label>
+        <select id="queue" name="queue" aria-describedby="queue-error"></select>
+        <p class="error" id="queue-error" data-error-for="queue"></p>
+
+        <label for="intervalSec">Intervalo de atualização (segundos)</label>
+        <input id="intervalSec" name="intervalSec" type="number" min="30" max="360" step="1" required aria-describedby="intervalSec-hint intervalSec-error">
+        <p class="hint" id="intervalSec-hint">De 30 a 360 segundos.</p>
+        <p class="error" id="intervalSec-error" data-error-for="intervalSec"></p>
+      </fieldset>
+
+      <div class="actions">
+        <button type="submit">Salvar</button>
+        <button type="button" id="restore-defaults" class="secondary">Restaurar padrões</button>
+      </div>
+      <p id="status" role="status" aria-live="polite"></p>
+    </form>
+  </main>
+  <script src="options.js"></script>
+</body>
+</html>
