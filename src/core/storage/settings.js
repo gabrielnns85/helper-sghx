@@ -104,6 +104,18 @@ export function createSettings({
     },
 
     /**
+     * Como get(), mas se o chrome.storage falhar lança em vez de usar os padrões.
+     * Para quem vai gravar em seguida (página de opções): evita salvar por cima do que existe.
+     */
+    async load() {
+      try {
+        return merged(await serial(readSaved));
+      } catch (err) {
+        throw new Error(`Não foi possível ler as configurações (${err.message})`, { cause: err });
+      }
+    },
+
+    /**
      * Salva uma ou mais configurações. Cada uma substitui a anterior inteira e precisa
      * ter a forma do padrão. Nada é gravado se alguma for inválida.
      * @param {Record<string, unknown>} partial

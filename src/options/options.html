@@ -15,8 +15,7 @@
       <fieldset data-setting="unit">
         <legend>Unidade de saúde</legend>
         <label for="unitName">Nome da unidade</label>
-        <input id="unitName" name="unitName" type="text" maxlength="100" required aria-describedby="unitName-error">
-        <p class="error" id="unitName-error" data-error-for="unitName"></p>
+        <input id="unitName" name="unitName" type="text" readonly aria-describedby="codFces-hint">
 
         <label for="codFces">Código da unidade (CodFces)</label>
         <input id="codFces" name="codFces" type="text" inputmode="numeric" disabled aria-describedby="codFces-hint codFces-error">
@@ -27,9 +26,13 @@
       <fieldset data-setting="autoLogin">
         <legend>Login automático</legend>
         <label class="toggle">
-          <input name="autoLoginEnabled" type="checkbox">
+          <input name="autoLoginEnabled" type="checkbox" aria-describedby="autoLogin-warning">
           Ligar o login automático no SGHx
         </label>
+        <p class="warning" id="autoLogin-warning">
+          Use só no seu perfil pessoal do Chrome, nunca em computador compartilhado: outra pessoa entraria no SGHx
+          com o seu usuário.
+        </p>
       </fieldset>
 
       <fieldset data-setting="queueRefresh">
@@ -40,7 +43,8 @@
         </label>
 
         <label for="queue">Fila a selecionar</label>
-        <select id="queue" name="queue" aria-describedby="queue-error"></select>
+        <select id="queue" name="queue" aria-describedby="queue-hint queue-error"></select>
+        <p class="hint" id="queue-hint">Obrigatória para ligar a atualização.</p>
         <p class="error" id="queue-error" data-error-for="queue"></p>
 
         <label for="intervalSec">Intervalo de atualização (segundos)</label>

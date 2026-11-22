@@ -108,7 +108,8 @@ describe('regras de valor (settings-rules.js)', () => {
   });
 
   it('set aceita valor dentro das regras', async () => {
-    await settings.set({ queueRefresh: queueRefresh({ enabled: true, intervalSec: 60 }) });
+    const pediatria = { codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 1 };
+    await settings.set({ queueRefresh: queueRefresh({ enabled: true, intervalSec: 60, queue: pediatria }) });
     expect((await settings.get('queueRefresh')).intervalSec).toBe(60);
   });
 

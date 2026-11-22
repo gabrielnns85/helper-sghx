@@ -1,30 +1,21 @@
 // Conversão entre o formulário da página de opções e as configurações (#8).
 // Sem DOM e sem chrome.*: a página (page.js) lê os campos e mostra os erros.
+// Só códigos vão para as configurações; nomes (unidade, fila) vêm do catálogo.
+import { KNOWN_QUEUES, NO_QUEUE, findUnit, queueKey } from '../core/catalog.js';
 import { validateSetting } from '../core/storage/settings-rules.js';
-import { KNOWN_QUEUES } from './queues.js';
 
 /**
- * @typedef {{ codAcaoDestino: number, codEspecialidade: number, indSituacao: number, label: string }} Queue
- * @typedef {{ value: string, label: string, queue: Queue }} QueueOption
  * @typedef {{
  *   autoLoginEnabled: boolean, queueRefreshEnabled: boolean,
  *   intervalSec: string, queue: string, unitName: string, codFces: string,
  * }} FormValues
  */
 
-/** Identifica a categoria da fila como o SGHx: CodAcaoDestino:CodEspecialidade:IndSituacao. */
-export const queueKey = (queue) => `${queue.codAcaoDestino}:${queue.codEspecialidade}:${queue.indSituacao}`;
+const PLACEHOLDER = Object.freeze({ value: '', label: 'Escolha a fila' });
 
-const toOption = (queue) => ({ value: queueKey(queue), label: queue.label, queue });
-
-/**
- * Filas para o select: as conhecidas e, se a salva não estiver entre elas, ela no fim.
- * @param {Queue} current
- * @returns {QueueOption[]}
- */
-export function queueOptions(current) {
-  const known = KNOWN_QUEUES.map(toOption);
-  return known.some((o) => o.value === queueKey(current)) ? known : [...known, toOption(current)];
+/** Opções do select de fila: "Escolha a fila" e as filas do catálogo. */
+export function queueOptions() {
+  return [PLACEHOLDER, ...KNOWN_QUEUES.map((q) => ({ value: queueKey(q), label: q.label }))];
 }
 
 /** @returns {FormValues} */
@@ -34,7 +25,7 @@ export function settingsToForm(settings) {
     queueRefreshEnabled: settings.queueRefresh.enabled,
     intervalSec: String(settings.queueRefresh.intervalSec),
     queue: queueKey(settings.queueRefresh.queue),
-    unitName: settings.unit.name,
+    unitName: findUnit(settings.unit.codFces)?.name ?? '',
     codFces: String(settings.unit.codFces),
   };
 }
@@ -45,31 +36,40 @@ const toNumber = (text) => {
   return trimmed === '' ? Number.NaN : Number(trimmed);
 };
 
+/** Chave do select → só os códigos da fila (sem o nome). null = não está na lista. */
+function queueFromKey(key) {
+  if (key === '') return { ...NO_QUEUE };
+  const found = KNOWN_QUEUES.find((q) => queueKey(q) === key);
+  if (!found) return null;
+  const { codAcaoDestino, codEspecialidade, indSituacao } = found;
+  return { codAcaoDestino, codEspecialidade, indSituacao };
+}
+
 /**
  * Valores do formulário → configurações prontas para settings.set, ou os erros por campo.
+ * O nome da unidade na tela é só leitura e não é gravado.
  * @param {FormValues} values
- * @param {QueueOption[]} options as filas mostradas no select
  * @returns {{ settings: Record<string, unknown> | null, errors: { path: string, message: string }[] }}
  */
-export function formToSettings(values, options) {
-  const option = options.find((o) => o.value === values.queue);
-  const queueErrors = option ? [] : [{ path: 'queueRefresh.queue', message: 'Fila: escolha uma fila da lista' }];
+export function formToSettings(values) {
+  const queue = queueFromKey(values.queue);
+  const queueErrors = queue ? [] : [{ path: 'queueRefresh.queue', message: 'Fila não reconhecida: escolha uma fila da lista' }];
   const candidate = {
-    unit: { name: values.unitName.trim(), codFces: toNumber(values.codFces) },
+    unit: { codFces: toNumber(values.codFces) },
     autoLogin: { enabled: Boolean(values.autoLoginEnabled) },
     queueRefresh: {
       enabled: Boolean(values.queueRefreshEnabled),
       intervalSec: toNumber(values.intervalSec),
-      // Sem fila válida, o erro acima já barra; o placeholder só mantém a forma para as outras regras.
-      queue: option ? option.queue : options[0].queue,
+      // Fila fora da lista: o erro acima já barra; NO_QUEUE só mantém a forma para as outras regras.
+      queue: queue ?? { ...NO_QUEUE },
     },
   };
-  const errors = [...queueErrors, ...Object.entries(candidate).flatMap(([key, value]) => validateSetting(key, value))];
+  const ruleErrors = Object.entries(candidate).flatMap(([key, value]) => validateSetting(key, value));
+  const errors = queue ? ruleErrors : [...queueErrors, ...ruleErrors.filter((e) => e.path !== 'queueRefresh.queue')];
   return errors.length > 0 ? { settings: null, errors } : { settings: candidate, errors: [] };
 }
 
 const FIELD_BY_PATH = Object.freeze({
-  'unit.name': 'unitName',
   'unit.codFces': 'codFces',
   'queueRefresh.intervalSec': 'intervalSec',
   'queueRefresh.queue': 'queue',
@@ -77,6 +77,5 @@ const FIELD_BY_PATH = Object.freeze({
 
 /** Campo do formulário onde mostrar o erro de `path` (null = só no status). */
 export function fieldForPath(path) {
-  if (path.startsWith('queueRefresh.queue')) return 'queue';
   return FIELD_BY_PATH[path] ?? null;
 }
