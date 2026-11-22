@@ -8,7 +8,7 @@ ativa do SGHx pelo DOM e avisa quando ela muda. Roda no **mundo isolado**
 
 | `id` | Como é reconhecida (skill `sghx`, `referencia/MAPA.md`) |
 |---|---|
-| `login` | `#inputUsuario` (tela de login) ou `#comboEstabelecimento` (modal de contexto) — §1 |
+| `login` | `#inputUsuario` (tela de login) ou um dos modais da página de login: `#modalLogin` (contexto), `#modalProvedorCertificado` (certificado em nuvem), `#modalListaCertificado`, `#modalAutentDoisFatores`, `#trocarSenhaUsuario`, `#esqueciMinhaSenha`, `#termoUsoSistema` — §1 |
 | `fila` | `#Fila_CodAgrupamento`, sem modal de tela aberto — §2 |
 | `consulta` | `#Consulta_Modal` no topo (consulta normal **e** complementar) — §3 |
 | `prescricao` | `#PrescricaoMedicamento_Modal` no topo; os submodais `#PosologiaMedicamentoModal`, `#PosologiaModal` e `#JustificativaFarmaciaExternaModal` também contam como prescrição — §4.6 |
@@ -20,7 +20,9 @@ Regras:
 
 - A tela ativa é a do **modal de tela visível de cima** (o último `.lightbox` visível
   na ordem do DOM). Sem modal, vale a tela de fundo (login ou fila).
-- **Pop-ups** (`.lightbox` com `.bootstrap-dialog-message`) não mudam a tela.
+- **Pop-ups** (`.lightbox` com a própria `.bootstrap-dialog-message`) não mudam a tela. A
+  consulta real traz um pop-up molde oculto aninhado na toolbar: só conta a mensagem
+  cujo `.lightbox` mais próximo é o próprio modal.
 - Modal desconhecido por cima dá `unknown`, **nunca a tela de baixo**: assim nenhuma
   automação preenche uma consulta escondida atrás de outro modal.
 - `stack` traz a pilha do fundo para o topo, ex.: `['fila', 'consulta', 'prescricao']`.
@@ -51,6 +53,8 @@ export const atestado = {
 
 ## Limites conhecidos
 
+- O login pelo VIDAAS sai para `certificado.vidaas.com.br`, fora do domínio da extensão:
+  ali não há detecção.
 - O atestado aberto pelo menu (*Usuário > Atestado*, `AtestadoMedico/AtestadoMedicoToModal`)
   ainda não está mapeado na skill e aparece como `unknown`. Só o atestado das
   Ferramentas do SOAP é reconhecido.
