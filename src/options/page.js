@@ -11,6 +11,49 @@ const MESSAGES = Object.freeze({
   invalid: 'Corrija os campos destacados. Nada foi salvo.',
 });
 
+const fieldOf = (form, name) => form.elements.namedItem(name);
+
+function showStatus(statusEl, kind, text) {
+  statusEl.dataset.kind = kind;
+  statusEl.textContent = text;
+}
+
+/** Preenche o formulário e devolve as filas mostradas no select. */
+function fillForm(form, all) {
+  const queues = queueOptions(all.queueRefresh.queue);
+  const options = queues.map(({ value, label }) => {
+    const option = form.ownerDocument.createElement('option');
+    option.value = value;
+    option.textContent = label; // texto, nunca HTML
+    return option;
+  });
+  fieldOf(form, 'queue').replaceChildren(...options);
+  const values = settingsToForm(all);
+  CHECKBOXES.forEach((name) => { fieldOf(form, name).checked = values[name]; });
+  TEXT_FIELDS.forEach((name) => { fieldOf(form, name).value = values[name]; });
+  return queues;
+}
+
+const readValues = (form) => ({
+  ...Object.fromEntries(CHECKBOXES.map((name) => [name, fieldOf(form, name).checked])),
+  ...Object.fromEntries(TEXT_FIELDS.map((name) => [name, fieldOf(form, name).value])),
+});
+
+function clearErrors(form) {
+  form.querySelectorAll('[data-error-for]').forEach((el) => { el.textContent = ''; });
+  form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
+}
+
+function showErrors(form, errors) {
+  for (const { path, message } of errors) {
+    const name = fieldForPath(path);
+    const errorEl = name && form.querySelector(`[data-error-for="${name}"]`);
+    if (!errorEl) continue;
+    errorEl.textContent = errorEl.textContent ? `${errorEl.textContent} ${message}` : message;
+    fieldOf(form, name).setAttribute('aria-invalid', 'true');
+  }
+}
+
 /**
  * @param {{ settings: ReturnType<import('../core/storage/settings.js').createSettings>, root?: Document }} opts
  * @returns {Promise<{ save: () => Promise<void>, restoreDefaults: () => Promise<void> }>}
@@ -18,76 +61,32 @@ const MESSAGES = Object.freeze({
 export async function initOptionsPage({ settings, root = document }) {
   const form = root.querySelector('#settings-form');
   const statusEl = root.querySelector('#status');
-  const field = (name) => form.elements.namedItem(name);
-  let shownQueues = [];
-
-  const showStatus = (kind, text) => {
-    statusEl.dataset.kind = kind;
-    statusEl.textContent = text;
-  };
-
-  function renderQueues(current) {
-    shownQueues = queueOptions(current);
-    const options = shownQueues.map(({ value, label }) => {
-      const option = root.createElement('option');
-      option.value = value;
-      option.textContent = label; // texto, nunca HTML
-      return option;
-    });
-    field('queue').replaceChildren(...options);
-  }
-
-  function fill(all) {
-    renderQueues(all.queueRefresh.queue);
-    const values = settingsToForm(all);
-    CHECKBOXES.forEach((name) => { field(name).checked = values[name]; });
-    TEXT_FIELDS.forEach((name) => { field(name).value = values[name]; });
-  }
-
-  const readValues = () => ({
-    ...Object.fromEntries(CHECKBOXES.map((name) => [name, field(name).checked])),
-    ...Object.fromEntries(TEXT_FIELDS.map((name) => [name, field(name).value])),
-  });
-
-  function clearErrors() {
-    form.querySelectorAll('[data-error-for]').forEach((el) => { el.textContent = ''; });
-    form.querySelectorAll('[aria-invalid]').forEach((el) => el.removeAttribute('aria-invalid'));
-  }
-
-  function showErrors(errors) {
-    for (const { path, message } of errors) {
-      const name = fieldForPath(path);
-      const errorEl = name && form.querySelector(`[data-error-for="${name}"]`);
-      if (!errorEl) continue;
-      errorEl.textContent = errorEl.textContent ? `${errorEl.textContent} ${message}` : message;
-      field(name).setAttribute('aria-invalid', 'true');
-    }
-  }
+  let shownQueues = fillForm(form, await settings.get());
 
   async function save() {
-    clearErrors();
-    const { settings: next, errors } = formToSettings(readValues(), shownQueues);
+    clearErrors(form);
+    const { settings: next, errors } = formToSettings(readValues(form), shownQueues);
     if (errors.length > 0) {
-      showErrors(errors);
-      showStatus('error', MESSAGES.invalid);
+      showErrors(form, errors);
+      showStatus(statusEl, 'error', MESSAGES.invalid);
       return;
     }
     try {
       await settings.set(next);
-      showStatus('ok', MESSAGES.saved);
+      showStatus(statusEl, 'ok', MESSAGES.saved);
     } catch (err) {
-      showStatus('error', err.message);
+      showStatus(statusEl, 'error', err.message);
     }
   }
 
   async function restoreDefaults() {
-    clearErrors();
+    clearErrors(form);
     try {
       await settings.reset();
-      fill(await settings.get());
-      showStatus('ok', MESSAGES.restored);
+      shownQueues = fillForm(form, await settings.get());
+      showStatus(statusEl, 'ok', MESSAGES.restored);
     } catch (err) {
-      showStatus('error', err.message);
+      showStatus(statusEl, 'error', err.message);
     }
   }
 
@@ -96,7 +95,5 @@ export async function initOptionsPage({ settings, root = document }) {
     save();
   });
   root.querySelector('#restore-defaults').addEventListener('click', () => restoreDefaults());
-
-  fill(await settings.get());
   return { save, restoreDefaults };
 }
