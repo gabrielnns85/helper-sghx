@@ -28,6 +28,10 @@ npm run dev         # recompila dist/extension/ a cada mudança em src/
 
 Para carregar no navegador (Chrome ou Edge 111+): abra `chrome://extensions` ou `edge://extensions`, ative o **Modo do desenvolvedor**, clique em **Carregar sem compactação** e escolha `dist/extension/`. Ao abrir o SGHx, o console da página mostra `[helper-sghx] <versão> carregado`.
 
+**Configurações:** em `chrome://extensions`, abra **Detalhes** do helper-sghx → **Opções da extensão**. Ali ficam a
+unidade, o liga/desliga de cada automação, a fila e o intervalo de atualização. Salvar vale na hora nas abas abertas
+do SGHx, sem recarregar.
+
 O CI (GitHub Actions) roda `npm test` e `npm run build` em todo PR e na `main`, e publica o `.zip` como artefato. A `main` é protegida: só recebe merge por PR com o check `test` verde.
 
 ### Estrutura
@@ -41,7 +45,8 @@ O CI (GitHub Actions) roda `npm test` e `npm run build` em todo PR e na `main`, 
 - `src/core/dom/`: helpers de DOM (preencher campos, aguardar elementos, pop-ups). Ver [guia](docs/dom-helpers.md)
 - `src/core/screen/`: detecção da tela ativa (login, fila, consulta, prescrição…) e evento de mudança de tela. Ver [guia](docs/screen-detection.md)
 - `src/core/storage/`: sessão do atendimento (nunca persistida) e configurações do médico. Ver [guia](docs/storage.md) e [ADR 0002](docs/adr/0002-armazenamento-sessao-configuracoes.md)
-- `src/features/`: registro das funcionalidades
+- `src/options/`: página de opções (configurações do médico)
+- `src/features/`: registro das funcionalidades. Ver o [contrato de funcionalidade](docs/funcionalidades.md)
 - `src/ui/`: interface (painel)
 - `tests/unit/`: testes; `tests/fixtures/`: HTML anonimizado das telas ([como capturar e anonimizar](tests/fixtures/README.md)); `tests/helpers/`: utilitários de teste
 

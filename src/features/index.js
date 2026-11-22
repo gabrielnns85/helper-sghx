@@ -5,7 +5,8 @@
  * { bridge, screen } no SGHx: `screen` é o watchScreen (src/core/screen), para agir
  * só na tela certa (`screen.current().id`) e reagir a mudanças (`screen.subscribe`).
  * `session` guarda dados do atendimento (nunca persistidos) e `settings` as
- * configurações do médico; ver docs/storage.md.
+ * configurações do médico (`settings.subscribe` aplica mudanças sem recarregar);
+ * ver docs/storage.md. Opções e painel seguem docs/funcionalidades.md.
  */
 export function createFeatureRegistry() {
   const features = [];
