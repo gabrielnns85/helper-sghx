@@ -83,6 +83,19 @@ describe('createAutoLoginFeature', () => {
     expect(state.markQueuePending).toHaveBeenCalledWith(PEDIATRIA);
   });
 
+  it('modal de contexto que abre depois, por ajax (a tela continua "login"): segue para o contexto', async () => {
+    loadFixture('login-contexto');
+    const modal = $('#modalLogin');
+    modal.style.display = 'none';
+    const entrar = vi.fn();
+    modal.querySelector('#modalLoginEntra').addEventListener('click', entrar);
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    await feature.init(fakeCtx(withAutoLogin({ enabled: true }))); // ninguém emite mudança de tela
+    await feature.idle();
+    modal.style.display = 'block';
+    await vi.waitFor(() => expect(entrar).toHaveBeenCalledTimes(1));
+  });
+
   it('na fila com marca pendente: abre a fila configurada', async () => {
     const state = fakeState();
     state.markQueuePending(PEDIATRIA);
