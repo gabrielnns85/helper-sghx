@@ -9,8 +9,12 @@ const PEDIATRIA = Object.freeze({ codAcaoDestino: 5, codEspecialidade: 36, indSi
 
 function fakeState() {
   let queue = null;
+  let manualLogout = false;
   const attempts = new Set();
   return {
+    markManualLogout: vi.fn(() => { manualLogout = true; }),
+    clearManualLogout: vi.fn(() => { manualLogout = false; }),
+    isManualLogout: vi.fn(() => manualLogout),
     tryAttempt: vi.fn((step) => (attempts.has(step) ? false : (attempts.add(step), true))),
     markQueuePending: vi.fn((q) => { queue = q; }),
     takeQueuePending: vi.fn(() => { const q = queue; queue = null; return q; }),
@@ -137,6 +141,73 @@ describe('createAutoLoginFeature', () => {
     ctx.screen.emit();
     await feature.idle();
     expect(info.mock.calls.filter(([m]) => /desligado/.test(m))).toHaveLength(1);
+  });
+
+  describe('saída manual (Sair)', () => {
+    const PASSWORD_ON = { enabled: true, mode: 'password', user: 'medico', password: 'x1' };
+    const pepLocation = (pathname) => ({ origin: 'https://sghx.test', pathname, assign: vi.fn() });
+
+    function addSairButton() {
+      const sair = document.createElement('input');
+      sair.type = 'button';
+      sair.className = 'btn-sair';
+      sair.value = 'Sair';
+      sair.setAttribute('onclick', 'logoutArea()');
+      document.body.appendChild(sair);
+      return sair;
+    }
+
+    it('clicar em Sair marca a saída manual', async () => {
+      document.body.innerHTML = '<div class="content"></div>';
+      const sair = addSairButton();
+      const state = fakeState();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: pepLocation('/sistema/Pep/Fila/FilaInicial') });
+      await feature.init(fakeCtx(withAutoLogin(PASSWORD_ON)));
+      sair.click();
+      expect(state.markManualLogout).toHaveBeenCalledTimes(1);
+    });
+
+    it('depois do Sair, a tela de login não entra sozinha e avisa no console', async () => {
+      const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+      const state = fakeState();
+      state.markManualLogout();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: pepLocation('/sistema/Login') });
+      await feature.init(fakeCtx(withAutoLogin(PASSWORD_ON)));
+      await feature.idle();
+      expect(submitted).not.toHaveBeenCalled();
+      expect($('#inputSenha').value).toBe('');
+      expect(info).toHaveBeenCalledWith(expect.stringMatching(/pausado.*Sair/i));
+    });
+
+    it('depois do Sair, a tela de Módulos e o modal de contexto também não agem', async () => {
+      const state = fakeState();
+      state.markManualLogout();
+      loadFixture('modulos');
+      const opened = vi.fn();
+      $('.card-modulo-sghx[id="2"]').addEventListener('click', opened);
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: pepLocation('/sistema/') });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+      await feature.idle();
+      expect(opened).not.toHaveBeenCalled();
+      expect(state.tryAttempt).not.toHaveBeenCalled();
+    });
+
+    it('página do PEP carregada já logado (entrou de novo à mão): limpa a marca', async () => {
+      document.body.innerHTML = '<div class="content"><h1>PEP</h1></div>';
+      const state = fakeState();
+      state.markManualLogout();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: pepLocation('/sistema/pep') });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+      expect(state.isManualLogout()).toBe(false);
+    });
+
+    it('na tela de login, a marca continua', async () => {
+      const state = fakeState();
+      state.markManualLogout();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: pepLocation('/sistema/Login') });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+      expect(state.isManualLogout()).toBe(true);
+    });
   });
 
   it('falha numa etapa: avisa no console sem a senha e não quebra a extensão', async () => {
