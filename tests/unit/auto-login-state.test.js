@@ -90,6 +90,28 @@ describe('fila pendente depois de entrar', () => {
   });
 });
 
+describe('saída manual (Sair)', () => {
+  it('começa sem marca; marcar e limpar', () => {
+    expect(state.isManualLogout()).toBe(false);
+    state.markManualLogout();
+    expect(state.isManualLogout()).toBe(true);
+    state.clearManualLogout();
+    expect(state.isManualLogout()).toBe(false);
+  });
+
+  it('vale entre carregamentos da mesma aba (a tela de login vem depois do Sair)', () => {
+    state.markManualLogout();
+    expect(createAutoLoginState({ storage, now: () => clock }).isManualLogout()).toBe(true);
+  });
+
+  it('sem sessionStorage: não quebra', () => {
+    const broken = { getItem: () => { throw new Error('x'); }, setItem: () => { throw new Error('x'); }, removeItem: () => { throw new Error('x'); } };
+    const s = createAutoLoginState({ storage: broken, now: () => clock });
+    expect(() => { s.markManualLogout(); s.clearManualLogout(); }).not.toThrow();
+    expect(s.isManualLogout()).toBe(false);
+  });
+});
+
 describe('o que fica no sessionStorage', () => {
   it('nunca guarda usuário nem senha: só horários e códigos', () => {
     state.tryAttempt('login');
