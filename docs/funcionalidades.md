@@ -31,6 +31,9 @@ Regras:
   recarregar** a página nem a extensão.
 - Nada de dado de paciente nem senha nas configurações (senhas vão para o cofre, #64). Por isso, **sem texto
   livre**: escolhas viram códigos de um catálogo. Texto livre só com justificativa na issue e regra que o restrinja.
+  **Exceção temporária (#10, fase de teste):** `autoLogin.user`/`autoLogin.password` (modo usuário e senha do
+  login automático) ficam nas configurações, em texto puro, até o cofre da #64. A senha só é gravada nesse modo,
+  nunca aparece em mensagem de erro nem no console e nunca passa pela ponte.
 - Escolha que muda **o que o médico vê** (ex.: qual fila acompanhar) **não tem padrão silencioso**: começa vazia e
   a automação não liga sem ela.
 - A mudança vale no **próximo ciclo** da automação, nunca no meio de uma ação em andamento.
