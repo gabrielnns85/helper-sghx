@@ -7,12 +7,23 @@ import { DEFAULT_SETTINGS } from '../../src/core/storage/defaults.js';
 const TIMEOUT = 300;
 const PEDIATRIA = Object.freeze({ codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 1 });
 
+const SGHX_HOST = 'upajacana.smsprefeiturasp.com.br';
+const sghxLocation = (pathname = '/sistema/Login') => ({
+  origin: `https://${SGHX_HOST}`, hostname: SGHX_HOST, pathname, assign: vi.fn(),
+});
+
 function fakeState() {
   let queue = null;
   let manualLogout = false;
+  let entered = false;
+  let loginSubmitted = false;
   const attempts = new Set();
   return {
-    markManualLogout: vi.fn(() => { manualLogout = true; }),
+    hasEntered: vi.fn(() => entered),
+    markEntered: vi.fn(() => { entered = true; loginSubmitted = false; }),
+    hasLoginSubmitted: vi.fn(() => loginSubmitted),
+    markLoginSubmitted: vi.fn(() => { loginSubmitted = true; }),
+    markManualLogout: vi.fn(() => { manualLogout = true; queue = null; }),
     clearManualLogout: vi.fn(() => { manualLogout = false; }),
     isManualLogout: vi.fn(() => manualLogout),
     tryAttempt: vi.fn((step) => (attempts.has(step) ? false : (attempts.add(step), true))),
@@ -67,7 +78,7 @@ describe('createAutoLoginFeature', () => {
 
   it('ligado no modo senha: entra ao carregar a tela de login, uma vez só', async () => {
     const ctx = fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'x1' }));
-    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: sghxLocation() });
     await feature.init(ctx);
     await feature.idle();
     ctx.screen.emit();
@@ -125,7 +136,7 @@ describe('createAutoLoginFeature', () => {
 
   it('registra no console a etapa que agiu e o resultado (sem dados)', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
-    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: sghxLocation() });
     await feature.init(fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'S3gr3d0' })));
     await feature.idle();
     expect(info).toHaveBeenCalledWith(expect.stringMatching(/login automático: etapa "login" → submitted/));
@@ -135,7 +146,7 @@ describe('createAutoLoginFeature', () => {
   it('desligado: diz no console que está desligado, uma vez por carregamento', async () => {
     const info = vi.spyOn(console, 'info').mockImplementation(() => {});
     const ctx = fakeCtx(DEFAULT_SETTINGS);
-    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: sghxLocation() });
     await feature.init(ctx);
     await feature.idle();
     ctx.screen.emit();
@@ -145,7 +156,7 @@ describe('createAutoLoginFeature', () => {
 
   describe('saída manual (Sair)', () => {
     const PASSWORD_ON = { enabled: true, mode: 'password', user: 'medico', password: 'x1' };
-    const pepLocation = (pathname) => ({ origin: 'https://sghx.test', pathname, assign: vi.fn() });
+    const pepLocation = (pathname) => sghxLocation(pathname);
 
     function addSairButton() {
       const sair = document.createElement('input');
@@ -210,10 +221,70 @@ describe('createAutoLoginFeature', () => {
     });
   });
 
+  describe('robustez', () => {
+    it('uma exceção inesperada não derruba as execuções seguintes', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const state = fakeState();
+      state.isManualLogout.mockImplementationOnce(() => { throw new Error('storage quebrou'); });
+      const ctx = fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'x1' }));
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: sghxLocation() });
+      await feature.init(ctx);
+      await feature.idle();
+      ctx.screen.emit();
+      await feature.idle();
+      expect(warn).toHaveBeenCalled();
+      expect(submitted).toHaveBeenCalledTimes(1);
+    });
+
+    it('modal de contexto que fecha e abre de novo: reavalia a cada abertura', async () => {
+      loadFixture('login-contexto');
+      const modal = $('#modalLogin');
+      const ctx = fakeCtx(withAutoLogin({ enabled: true }));
+      const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, pollMs: 20, location: sghxLocation() });
+      await feature.init(ctx);
+      await feature.idle();
+      const readsAfterFirst = ctx.settings.get.mock.calls.length;
+      modal.style.display = 'none';
+      await new Promise((r) => setTimeout(r, 80));
+      modal.style.display = 'block';
+      await vi.waitFor(() => expect(ctx.settings.get.mock.calls.length).toBeGreaterThan(readsAfterFirst));
+    });
+
+    it('na tela de Módulos já tendo entrado nesta aba: não clica', async () => {
+      loadFixture('modulos');
+      const opened = vi.fn();
+      $('.card-modulo-sghx[id="2"]').addEventListener('click', opened);
+      const state = fakeState();
+      state.markEntered();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: sghxLocation('/sistema/') });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+      await feature.idle();
+      expect(opened).not.toHaveBeenCalled();
+    });
+
+    it('página do PEP carregada já logado: marca que entrou nesta aba', async () => {
+      document.body.innerHTML = '<div class="content"><h1>PEP</h1></div>';
+      const state = fakeState();
+      const feature = createAutoLoginFeature({ state, timeout: TIMEOUT, location: sghxLocation('/sistema/pep') });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+      expect(state.markEntered).toHaveBeenCalledTimes(1);
+    });
+
+    it('modo senha em endereço que não é o do SGHx: não preenche e avisa sem a senha', async () => {
+      const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+      const bad = { origin: 'https://falso.smsprefeiturasp.com.br', hostname: 'falso.smsprefeiturasp.com.br', pathname: '/sistema/Login', assign: vi.fn() };
+      const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: bad });
+      await feature.init(fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'S3gr3d0' })));
+      await feature.idle();
+      expect($('#inputSenha').value).toBe('');
+      expect(JSON.stringify(warn.mock.calls)).not.toContain('S3gr3d0');
+    });
+  });
+
   it('falha numa etapa: avisa no console sem a senha e não quebra a extensão', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     $('#inputSenha').readOnly = true;
-    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: sghxLocation() });
     await feature.init(fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'S3gr3d0' })));
     await feature.idle();
     expect(warn).toHaveBeenCalled();
@@ -224,7 +295,7 @@ describe('createAutoLoginFeature', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const ctx = fakeCtx(DEFAULT_SETTINGS);
     ctx.settings.get.mockRejectedValue(new Error('sem storage'));
-    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT, location: sghxLocation() });
     await feature.init(ctx);
     await feature.idle();
     expect(submitted).not.toHaveBeenCalled();
