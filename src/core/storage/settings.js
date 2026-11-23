@@ -41,8 +41,8 @@ function assertValid(defaults, validate, key, value) {
 
 /**
  * Configurações persistentes do médico, em chrome.storage.local (um perfil do Chrome
- * por médico). Nunca guardar aqui dados de paciente (vão para a sessão) nem senhas
- * (vão para o cofre, #64).
+ * por médico). Nunca guardar aqui dados de paciente (vão para a sessão) nem senhas de outros sites
+ * (vão para o cofre, #64). Exceção temporária: autoLogin.password (#10, ver defaults.js).
  *
  * @param {{
  *   area?: chrome.storage.StorageArea,
