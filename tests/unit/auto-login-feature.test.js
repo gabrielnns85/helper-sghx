@@ -21,6 +21,7 @@ function fakeState() {
 function fakeCtx(all) {
   const listeners = new Set();
   return {
+    bridge: { request: vi.fn(async () => ({})) },
     settings: { get: vi.fn(async () => all) },
     screen: {
       subscribe: vi.fn((fn) => { listeners.add(fn); return () => listeners.delete(fn); }),

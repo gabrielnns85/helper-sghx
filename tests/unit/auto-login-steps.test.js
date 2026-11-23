@@ -5,6 +5,7 @@ import { runLoginStep } from '../../src/features/auto-login/login-step.js';
 import { runContextStep } from '../../src/features/auto-login/context-step.js';
 import { runQueueStep } from '../../src/features/auto-login/queue-step.js';
 import { runModuleStep } from '../../src/features/auto-login/module-step.js';
+import { FILA_PATH, runNavigateStep } from '../../src/features/auto-login/navigate-step.js';
 import { NO_QUEUE } from '../../src/core/catalog.js';
 
 const TIMEOUT = 300;
@@ -73,49 +74,56 @@ describe('runModuleStep: tela de Módulos', () => {
 });
 
 describe('runLoginStep: Login Nuvem (VIDAAS)', () => {
-  let entrar;
+  let directClick;
+  let bridge;
 
   beforeEach(() => {
     loadFixture('login-certificado-nuvem');
     const modal = $('#modalProvedorCertificado');
     hide(modal);
     $('#loginCertificadoNuvem').addEventListener('click', () => show(modal));
-    entrar = vi.fn();
-    modal.querySelector('#modalLoginEntra').addEventListener('click', entrar);
+    directClick = vi.fn();
+    modal.querySelector('#modalLoginEntra').addEventListener('click', directClick);
+    bridge = { request: vi.fn(async () => ({ clicked: true })) };
   });
 
-  it('abre o Certificado Nuvem, escolhe VIDAAS e clica em entrar dentro do modal', async () => {
-    const result = await runLoginStep({ config: CLOUD, state: fakeState(), timeout: TIMEOUT });
-    expect(result).toBe('submitted');
-    expect($('#comboProvedor').value).toBe('VIDAAS');
-    expect(entrar).toHaveBeenCalledTimes(1);
+  const run = (patch = {}) => runLoginStep({ config: CLOUD, state: fakeState(), bridge, timeout: TIMEOUT, ...patch });
+
+  it('abre o Certificado Nuvem, escolhe VIDAAS e pede à ponte o entrar (javascript: só roda no mundo da página)', async () => {
+    expect(await run()).toBe('submitted');
+    expect($('#comboProvedor').value).toBe('5');
+    expect(bridge.request).toHaveBeenCalledWith('submitCloudProvider');
+    expect(directClick).not.toHaveBeenCalled();
+  });
+
+  it('escolhe VIDAAS antes de pedir o entrar', async () => {
+    bridge.request.mockImplementation(async () => {
+      expect($('#comboProvedor').selectedOptions[0].text).toBe('VIDAAS');
+    });
+    await run();
+    expect(bridge.request).toHaveBeenCalledTimes(1);
   });
 
   it('não preenche usuário nem senha no modo nuvem', async () => {
-    await runLoginStep({ config: CLOUD, state: fakeState(), timeout: TIMEOUT });
+    await run();
     expect($('#inputUsuario').value).toBe('');
     expect($('#inputSenha').value).toBe('');
   });
 
-  it('clica no entrar do modal visível, não no #modalLoginEntra repetido de outro modal', async () => {
-    const outro = vi.fn();
-    const hidden = addScreenModal({ id: 'modalListaCertificado', title: 'Certificado' });
-    hide(hidden);
-    const a = document.createElement('a');
-    a.id = 'modalLoginEntra';
-    a.addEventListener('click', outro);
-    hidden.prepend(a);
-    document.body.prepend(hidden);
-    await runLoginStep({ config: CLOUD, state: fakeState(), timeout: TIMEOUT });
-    expect(outro).not.toHaveBeenCalled();
-    expect(entrar).toHaveBeenCalledTimes(1);
+  it('sem a ponte com a página: erro claro', async () => {
+    await expect(run({ bridge: undefined })).rejects.toThrow(/ponte/i);
   });
 
-  it('modal do provedor não abre: erro claro, sem clicar em nada', async () => {
+  it('a ponte falha: erro claro', async () => {
+    bridge.request.mockRejectedValue(new Error('Tempo esgotado na ponte'));
+    await expect(run()).rejects.toThrow(/entrar do Certificado em Nuvem/i);
+  });
+
+  it('modal do provedor não abre: erro claro, sem pedir o entrar', async () => {
     const fresh = $('#loginCertificadoNuvem').cloneNode(true); // sem o handler que abre o modal
     $('#loginCertificadoNuvem').replaceWith(fresh);
-    await expect(runLoginStep({ config: CLOUD, state: fakeState(), timeout: TIMEOUT })).rejects.toThrow(/Tempo esgotado/);
-    expect(entrar).not.toHaveBeenCalled();
+    await expect(run()).rejects.toThrow(/Tempo esgotado/);
+    expect(bridge.request).not.toHaveBeenCalled();
   });
 });
 
@@ -242,6 +250,50 @@ describe('runContextStep: modal de contexto', () => {
   it('já tentou há pouco: não tenta de novo', async () => {
     expect(await run({ state: fakeState({ blocked: ['context'] }) })).toBe('cooldown');
     expect(entrar).not.toHaveBeenCalled();
+  });
+});
+
+describe('runNavigateStep: depois de entrar, vai para Atendimento > Fila de Atendimento', () => {
+  const ORIGIN = 'https://upajacana.smsprefeiturasp.com.br';
+  const fakeLocation = (pathname) => ({ origin: ORIGIN, pathname, assign: vi.fn() });
+
+  beforeEach(() => { document.body.innerHTML = '<div class="content"><h1>PEP</h1></div>'; });
+
+  it('com fila pendente, na página inicial do PEP: abre a Fila de Atendimento', async () => {
+    const location = fakeLocation('/sistema/pep');
+    expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA }), location })).toBe('submitted');
+    expect(location.assign).toHaveBeenCalledWith(`${ORIGIN}${FILA_PATH}`);
+    expect(FILA_PATH).toBe('/sistema/Pep/Fila/FilaInicial');
+  });
+
+  it('não consome a marca (a etapa da fila usa depois)', async () => {
+    const state = fakeState({ pending: PEDIATRIA });
+    await runNavigateStep({ state, location: fakeLocation('/sistema/Pep/') });
+    expect(state.hasQueuePending()).toBe(true);
+  });
+
+  it('sem fila pendente (o médico só navegou): não faz nada', async () => {
+    const location = fakeLocation('/sistema/pep');
+    expect(await runNavigateStep({ state: fakeState(), location })).toBe('not-ready');
+    expect(location.assign).not.toHaveBeenCalled();
+  });
+
+  it.each(['/sistema/Pep/Fila/FilaInicial', '/sistema/', '/sistema/Login'])('em %s: não navega', async (path) => {
+    const location = fakeLocation(path);
+    expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA }), location })).toBe('not-ready');
+    expect(location.assign).not.toHaveBeenCalled();
+  });
+
+  it('com a fila já na tela: não navega', async () => {
+    loadFixture('fila-categorias');
+    const location = fakeLocation('/sistema/pep');
+    expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA }), location })).toBe('not-ready');
+  });
+
+  it('já tentou há pouco: não tenta de novo', async () => {
+    const location = fakeLocation('/sistema/pep');
+    expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA, blocked: ['navigate'] }), location })).toBe('cooldown');
+    expect(location.assign).not.toHaveBeenCalled();
   });
 });
 
