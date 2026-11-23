@@ -1,6 +1,7 @@
 // Content script no mundo isolado: UI, funcionalidades e chrome.*.
 import { createBridgeClient } from './core/bridge-client.js';
 import { createFeatureRegistry } from './features/index.js';
+import { createAutoLoginFeature } from './features/auto-login/index.js';
 import { watchScreen } from './core/screen/index.js';
 import { SITE } from './core/sites.js';
 import { bindSessionToScreen, createSessionClient, createSettings } from './core/storage/index.js';
@@ -23,6 +24,7 @@ async function main() {
   const { version } = chrome.runtime.getManifest();
   const bridge = createBridgeClient(window, { timeoutMs: 1000 });
   const features = createFeatureRegistry();
+  features.register(createAutoLoginFeature());
 
   // Tela ativa do SGHx: as funcionalidades usam screen.current() e screen.subscribe().
   const screen = watchScreen();
