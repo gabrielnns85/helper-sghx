@@ -55,8 +55,8 @@ registra uma **seção no painel** do SGHx, habilitada conforme a tela (`screen.
 - um **alerta visível** (não um aviso que some sozinho) quando falhar, parar (sessão expirada, modal aberto, erro de
   rede) ou passar de 2× o intervalo sem atualizar. O médico nunca pode achar que a tela está atual quando não está.
 
-> A API de seções do painel nasce na #7. Até lá, este item fica como contrato: a funcionalidade não cria UI
-> própria solta na página do SGHx.
+A API de seções e mensagens está em [ui-panel.md](ui-panel.md) (`ctx.ui`). A funcionalidade **não cria UI
+própria solta** na página do SGHx: tudo passa pelo painel.
 
 ## 4. Segurança do paciente
 
