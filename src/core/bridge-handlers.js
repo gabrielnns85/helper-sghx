@@ -1,6 +1,26 @@
 import { createResponse } from './bridge-protocol.js';
 import { setPageFieldValue } from './dom/page-fields.js';
 
+/** Modal "Certificado em Nuvem" da tela de login (skill sghx, MAPA.md §1 passo 2a). */
+const CLOUD_PROVIDER_MODAL = '#modalProvedorCertificado';
+const MODAL_SUBMIT = '#modalLoginEntra';
+
+const isShown = (win, el) => Boolean(el) && win.getComputedStyle(el).display !== 'none';
+
+/**
+ * Entrar do Certificado em Nuvem (#10). O botão é <a href="javascript:provedorEscolhido()">:
+ * clicado do mundo isolado, a CSP da extensão bloqueia o javascript:, então o clique sai daqui.
+ * Só esse botão, só com o modal aberto: leva ao provedor escolhido (VIDAAS), não grava nada.
+ */
+function submitCloudProvider(win) {
+  const modal = win.document.querySelector(CLOUD_PROVIDER_MODAL);
+  if (!isShown(win, modal)) throw new Error('O modal "Certificado em Nuvem" não está aberto');
+  const button = modal.querySelector(MODAL_SUBMIT);
+  if (!button) throw new Error('Botão "entrar" do Certificado em Nuvem não encontrado');
+  button.click();
+  return { clicked: true };
+}
+
 /**
  * Comandos que a ponte (mundo MAIN) aceita. Nada aqui pode salvar no
  * prontuário: os comandos só leem o estado da página ou preenchem campos,
@@ -15,6 +35,9 @@ export function createPageHandlers(win) {
     // Preenche widget DevExtreme ou observable do Knockout (ver src/core/dom/fields.js).
     setFieldValue(payload) {
       return setPageFieldValue(win, payload);
+    },
+    submitCloudProvider() {
+      return submitCloudProvider(win);
     },
   };
 }
