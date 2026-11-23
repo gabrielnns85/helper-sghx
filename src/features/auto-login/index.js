@@ -5,6 +5,7 @@
 import { runContextStep } from './context-step.js';
 import { runLoginStep } from './login-step.js';
 import { runModuleStep } from './module-step.js';
+import { runNavigateStep } from './navigate-step.js';
 import { runQueueStep } from './queue-step.js';
 import { createAutoLoginState } from './state.js';
 import { waitForElement } from '../../core/dom/index.js';
@@ -27,6 +28,7 @@ const STEPS = Object.freeze([
     id: 'context',
     run: ({ all, ...rest }) => runContextStep({ codFces: all.unit.codFces, queue: all.queueRefresh.queue, ...rest }),
   },
+  { id: 'navigate', run: (rest) => runNavigateStep(rest) },
   { id: 'queue', run: (rest) => runQueueStep(rest) },
 ]);
 
@@ -43,10 +45,12 @@ async function readSettings(settings) {
 }
 
 /**
- * @param {{ state?: ReturnType<typeof createAutoLoginState>, root?: ParentNode, timeout?: number }} [opts]
+ * @param {{ state?: ReturnType<typeof createAutoLoginState>, root?: ParentNode, timeout?: number,
+ *   location?: Pick<Location, 'origin' | 'pathname' | 'assign'> }} [opts]
  */
-export function createAutoLoginFeature({ state, root = document, timeout } = {}) {
+export function createAutoLoginFeature({ state, root = document, timeout, location = globalThis.location } = {}) {
   let running = Promise.resolve();
+  let bridge;
   let toldDisabled = false;
 
   async function runOnce(settings) {
@@ -60,7 +64,7 @@ export function createAutoLoginFeature({ state, root = document, timeout } = {})
     const loginState = state ?? createAutoLoginState();
     for (const step of STEPS) {
       try {
-        const result = await step.run({ all, state: loginState, root, timeout });
+        const result = await step.run({ all, state: loginState, root, timeout, bridge, location });
         if (result === 'not-ready') continue;
         // Só o id da etapa e o resultado: nunca usuário, senha nem dado da página.
         console.info(`${LOG}: etapa "${step.id}" → ${result}`);
@@ -89,7 +93,8 @@ export function createAutoLoginFeature({ state, root = document, timeout } = {})
 
   return {
     id: 'auto-login',
-    async init({ settings, screen }) {
+    async init({ settings, screen, bridge: pageBridge }) {
+      bridge = pageBridge;
       screen.subscribe(() => { schedule(settings); });
       schedule(settings);
       watchContextModal(settings);

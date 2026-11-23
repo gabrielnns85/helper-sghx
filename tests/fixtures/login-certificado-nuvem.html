@@ -1,7 +1,7 @@
 <!--
   Fixture SINTÉTICA (detecção de tela, issue #5): modal "Certificado em Nuvem" aberto
   pelo botão #loginCertificadoNuvem na tela de login. Estrutura conferida no SGHx em
-  21/11/2026. Nenhum dado real.
+  21/11/2026 (valores do combo e href do entrar: 22/11/2026). Nenhum dado real.
 -->
 <div class="login">
   <form>
@@ -17,8 +17,8 @@
     <div class="light-content-box -form">
       <div class="title-modal"><h3 class="title3">Certificado em Nuvem</h3></div>
       <label>Provedores</label>
-      <select id="comboProvedor"><option>SAFEID</option><option>VIDAAS</option></select>
-      <a href="#" id="modalLoginEntra" class="btn entra">entrar</a>
+      <select id="comboProvedor" class="combo form-input"><option value="1">SAFEID</option><option value="5">VIDAAS</option></select>
+      <a id="modalLoginEntra" href="javascript:provedorEscolhido();" class="btn entra">entrar</a>
       <a href="#" class="btn">cancelar</a>
     </div>
   </div>

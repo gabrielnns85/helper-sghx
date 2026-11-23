@@ -3,7 +3,7 @@
 // para a ponte (mundo MAIN): é gravada aqui, no mundo isolado.
 import { setFieldValue, waitForElement } from '../../core/dom/index.js';
 import { isVisible, sameText } from '../../core/dom/util.js';
-import { clickModalSubmit, visibleLightboxes } from './page.js';
+import { visibleLightboxes } from './page.js';
 
 const USER_FIELD = '#inputUsuario';
 const PASSWORD_FIELD = '#inputSenha';
@@ -18,11 +18,26 @@ export function isLoginFormReady(root = document) {
   return isVisible(user) && visibleLightboxes(root).length === 0;
 }
 
-async function loginWithCloud({ root, timeout }) {
+/**
+ * O "entrar" do provedor é um link javascript:, que a CSP da extensão bloqueia quando o
+ * clique sai do mundo isolado: quem clica é a ponte, no mundo da página.
+ */
+async function submitProvider(bridge) {
+  if (!bridge || typeof bridge.request !== 'function') {
+    throw new Error('Login Nuvem precisa da ponte com a página para clicar em entrar');
+  }
+  try {
+    await bridge.request('submitCloudProvider');
+  } catch (err) {
+    throw new Error(`Não foi possível clicar no entrar do Certificado em Nuvem (${err?.message ?? err})`);
+  }
+}
+
+async function loginWithCloud({ root, timeout, bridge }) {
   root.querySelector(CLOUD_BUTTON)?.click();
   const modal = await waitForElement(PROVIDER_MODAL, { visible: true, root, timeout });
   await setFieldValue(modal.querySelector(PROVIDER_SELECT), PROVIDER, { root });
-  clickModalSubmit(modal);
+  await submitProvider(bridge);
 }
 
 /** "Entrar" do formulário de login (sem id no SGHx), fora dos modais. */
@@ -53,16 +68,18 @@ async function loginWithPassword({ user, password, root }) {
 
 /**
  * @param {{ config: { mode: string, user: string, password: string },
- *   state: { tryAttempt(step: string): boolean }, root?: ParentNode, timeout?: number }} opts
+ *   state: { tryAttempt(step: string): boolean },
+ *   bridge?: { request(type: string, payload?: object): Promise<any> },
+ *   root?: ParentNode, timeout?: number }} opts
  * @returns {Promise<'not-ready' | 'cooldown' | 'submitted'>}
  */
-export async function runLoginStep({ config, state, root = document, timeout }) {
+export async function runLoginStep({ config, state, bridge, root = document, timeout }) {
   if (!isLoginFormReady(root)) return 'not-ready';
   if (!state.tryAttempt('login')) return 'cooldown';
   if (config.mode === 'password') {
     await loginWithPassword({ user: config.user, password: config.password, root });
   } else {
-    await loginWithCloud({ root, timeout });
+    await loginWithCloud({ root, timeout, bridge });
   }
   return 'submitted';
 }
