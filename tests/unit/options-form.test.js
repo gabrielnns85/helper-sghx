@@ -22,6 +22,9 @@ describe('settingsToForm', () => {
   it('padrões: nenhuma fila escolhida, nome da unidade vindo do catálogo', () => {
     expect(settingsToForm(DEFAULT_SETTINGS)).toEqual({
       autoLoginEnabled: false,
+      autoLoginMode: 'cloud',
+      autoLoginUser: '',
+      autoLoginPassword: '',
       queueRefreshEnabled: false,
       intervalSec: '30',
       queue: '',
@@ -46,7 +49,7 @@ describe('formToSettings', () => {
       formFromDefaults({ autoLoginEnabled: true, queueRefreshEnabled: true, intervalSec: ' 45 ', queue: '5:36:1' }),
     );
     expect(errors).toEqual([]);
-    expect(settings.autoLogin).toEqual({ enabled: true });
+    expect(settings.autoLogin).toEqual({ enabled: true, mode: 'cloud', user: '', password: '' });
     expect(settings.queueRefresh).toEqual({ enabled: true, intervalSec: 45, queue: PEDIATRIA });
     expect(settings.unit).toEqual({ codFces: 28 });
   });
@@ -76,6 +79,27 @@ describe('formToSettings', () => {
     expect(errors[0].message).toEqual(expect.any(String));
   });
 
+  it('modo usuário e senha grava o usuário sem espaços nas pontas e a senha como digitada', () => {
+    const { settings, errors } = formToSettings(formFromDefaults({
+      autoLoginEnabled: true, autoLoginMode: 'password', autoLoginUser: ' medico ', autoLoginPassword: ' s3nha ',
+    }));
+    expect(errors).toEqual([]);
+    expect(settings.autoLogin).toEqual({ enabled: true, mode: 'password', user: 'medico', password: ' s3nha ' });
+  });
+
+  it('modo nuvem descarta a senha digitada (não fica salva à toa)', () => {
+    const { settings } = formToSettings(formFromDefaults({ autoLoginMode: 'cloud', autoLoginUser: 'medico', autoLoginPassword: 'x' }));
+    expect(settings.autoLogin).toEqual({ enabled: false, mode: 'cloud', user: 'medico', password: '' });
+  });
+
+  it('modo usuário e senha ligado sem senha vira erro no campo da senha', () => {
+    const { settings, errors } = formToSettings(formFromDefaults({
+      autoLoginEnabled: true, autoLoginMode: 'password', autoLoginUser: 'medico', autoLoginPassword: '',
+    }));
+    expect(settings).toBeNull();
+    expect(errors.map((e) => e.path)).toEqual(['autoLogin.password']);
+  });
+
   it('não altera os valores recebidos', () => {
     const values = Object.freeze(formFromDefaults({ intervalSec: ' 45 ' }));
     expect(() => formToSettings(values)).not.toThrow();
@@ -87,6 +111,8 @@ describe('fieldForPath', () => {
     ['unit.codFces', 'codFces'],
     ['queueRefresh.intervalSec', 'intervalSec'],
     ['queueRefresh.queue', 'queue'],
+    ['autoLogin.user', 'autoLoginUser'],
+    ['autoLogin.password', 'autoLoginPassword'],
     ['desconhecido', null],
   ])('%s → %s', (path, field) => {
     expect(fieldForPath(path)).toBe(field);
