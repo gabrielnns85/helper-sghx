@@ -32,6 +32,19 @@ async function occupationChosen(modal, timeout) {
   return select.value !== '';
 }
 
+/** Relê os três campos antes do clique: uma lista recarregada por ajax pode ter zerado um deles. */
+function assertContext(modal, codFces) {
+  const text = (sel) => modal.querySelector(sel)?.selectedOptions?.[0]?.text ?? '';
+  const client = modal.querySelector(CLIENT.selector);
+  const wrong = [
+    client?.value !== CLIENT.value || /sghx/i.test(text(CLIENT.selector)) ? 'cliente' : null,
+    modal.querySelector(UNIT_SELECT)?.value !== String(codFces) ? 'unidade' : null,
+    modal.querySelector(OCCUPATION_SELECT)?.value === '' ? 'ocupação' : null,
+    modal.querySelector(SUBMODULE.selector)?.value !== SUBMODULE.value ? 'submódulo' : null,
+  ].filter(Boolean);
+  if (wrong.length > 0) throw new Error(`Contexto divergente depois de preencher (${wrong.join(', ')}); não cliquei em entrar`);
+}
+
 /**
  * @param {{ codFces: number, queue: import('./state.js').QueueCodes,
  *   state: { tryAttempt(step: string): boolean, markQueuePending(q: object): void },
@@ -44,9 +57,11 @@ export async function runContextStep({ codFces, queue, state, root = document, t
   const modal = root.querySelector(CONTEXT_MODAL);
   await choose(modal, CLIENT.selector, CLIENT.value, timeout);
   await choose(modal, UNIT_SELECT, String(codFces), timeout);
+  // A fila vale também quando o médico escolhe a ocupação e entra à mão.
+  if (!isNoQueue(queue)) state.markQueuePending(queue);
   if (!(await occupationChosen(modal, timeout))) return 'needs-occupation';
   await choose(modal, SUBMODULE.selector, SUBMODULE.value, timeout);
-  if (!isNoQueue(queue)) state.markQueuePending(queue);
+  assertContext(modal, codFces);
   clickModalSubmit(modal);
   return 'submitted';
 }

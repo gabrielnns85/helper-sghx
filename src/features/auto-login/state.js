@@ -5,11 +5,13 @@
 const PREFIX = 'helper-sghx:auto-login:';
 const QUEUE_KEY = `${PREFIX}queue`;
 const MANUAL_LOGOUT_KEY = `${PREFIX}manual-logout`;
+const ENTERED_KEY = `${PREFIX}entered`;
+const LOGIN_SUBMITTED_KEY = `${PREFIX}login-submitted`;
 
 /** Uma tentativa por etapa nesse intervalo: VIDAAS cancelado ou senha errada não viram loop. */
 export const ATTEMPT_COOLDOWN_MS = 2 * 60_000;
-/** A marca "abrir a fila depois de entrar" vale por esse tempo (inclui ler o QR no app). */
-export const QUEUE_PENDING_TTL_MS = 5 * 60_000;
+/** A marca "abrir a fila depois de entrar" vale por esse tempo (QR no app, escolher a ocupação…). */
+export const QUEUE_PENDING_TTL_MS = 15 * 60_000;
 
 const QUEUE_FIELDS = Object.freeze(['codAcaoDestino', 'codEspecialidade', 'indSituacao']);
 
@@ -40,6 +42,21 @@ export function createAutoLoginState({ storage = globalThis.sessionStorage, now 
       return storage.getItem(key);
     } catch {
       return undefined;
+    }
+  };
+
+  const setFlag = (key, label) => {
+    try {
+      storage.setItem(key, String(now()));
+    } catch (err) {
+      console.warn(`[helper-sghx] login automático: não foi possível marcar "${label}"`, err.message);
+    }
+  };
+  const removeKey = (key) => {
+    try {
+      storage.removeItem(key);
+    } catch {
+      // Sem storage não há marca para apagar.
     }
   };
 
@@ -86,22 +103,24 @@ export function createAutoLoginState({ storage = globalThis.sessionStorage, now 
 
     /** O médico clicou em Sair: nesta aba, nada de entrar sozinho até ele entrar de novo. */
     markManualLogout() {
-      try {
-        storage.setItem(MANUAL_LOGOUT_KEY, String(now()));
-      } catch (err) {
-        console.warn('[helper-sghx] login automático: não foi possível marcar a saída manual', err.message);
-      }
+      setFlag(MANUAL_LOGOUT_KEY, 'saída manual');
+      removeKey(QUEUE_KEY); // sair e entrar à mão não deve levar à fila sozinho
     },
 
     isManualLogout: () => typeof read(MANUAL_LOGOUT_KEY) === 'string',
 
-    clearManualLogout() {
-      try {
-        storage.removeItem(MANUAL_LOGOUT_KEY);
-      } catch {
-        // Sem storage não há marca para apagar.
-      }
+    clearManualLogout: () => removeKey(MANUAL_LOGOUT_KEY),
+
+    /** Já houve sessão logada nesta aba: a tela de Módulos não é mais "entrada". */
+    markEntered() {
+      setFlag(ENTERED_KEY, 'já entrou');
+      removeKey(LOGIN_SUBMITTED_KEY);
     },
+    hasEntered: () => typeof read(ENTERED_KEY) === 'string',
+
+    /** Login enviado: se a tela de login voltar (senha errada, VIDAAS cancelado), não repete sozinho. */
+    markLoginSubmitted: () => setFlag(LOGIN_SUBMITTED_KEY, 'login enviado'),
+    hasLoginSubmitted: () => typeof read(LOGIN_SUBMITTED_KEY) === 'string',
 
     /** Entrega a marca uma vez e apaga. @returns {QueueCodes | null} */
     takeQueuePending() {

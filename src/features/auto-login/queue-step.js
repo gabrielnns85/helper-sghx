@@ -1,7 +1,8 @@
-// Etapa 3 do login automático (#10): já na Fila de Atendimento, abre a fila configurada
+// Etapa 4 do login automático (#10): já na Fila de Atendimento, abre a fila configurada
 // (queueRefresh.queue) clicando na categoria da coluna Ação. Skill sghx, MAPA.md §7:
 // `#Fila_GridAcao tr[data-model]`. Clicar na categoria só lista pacientes: não grava nada.
 import { isVisible } from '../../core/dom/util.js';
+import { visibleLightboxes } from './page.js';
 import { waitFor } from '../../core/dom/index.js';
 import { TimeoutError } from '../../core/dom/errors.js';
 
@@ -29,7 +30,7 @@ const findRow = (root, queue) => [...root.querySelectorAll(CATEGORY_ROWS)].find(
  * @returns {Promise<'not-ready' | 'no-pending' | 'queue-not-found' | 'selected'>}
  */
 export async function runQueueStep({ state, root = document, timeout }) {
-  if (!isVisible(root.querySelector(FILA_MARKER))) return 'not-ready';
+  if (!isVisible(root.querySelector(FILA_MARKER)) || visibleLightboxes(root).length > 0) return 'not-ready';
   const queue = state.takeQueuePending();
   if (!queue) return 'no-pending';
   try {

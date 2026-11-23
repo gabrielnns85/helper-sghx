@@ -74,6 +74,7 @@ describe('bridge-handlers (mundo MAIN)', () => {
 
     it('clica no entrar do modal do provedor, não no #modalLoginEntra de outro modal', async () => {
       document.body.innerHTML = markup('block');
+      document.querySelector('#comboProvedor').value = '5'; // VIDAAS
       const clicked = [];
       document.querySelectorAll('[id="modalLoginEntra"]').forEach((a) => a.addEventListener('click', () => clicked.push(a.className)));
       const res = await handleRequest(createRequest('submitCloudProvider', null, 'r7'), createPageHandlers(window));

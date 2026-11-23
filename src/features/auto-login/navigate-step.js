@@ -2,6 +2,7 @@
 // a fila fica em Atendimento > Fila de Atendimento (skill sghx, MAPA.md §1 passo 4).
 // Só navega quando o próprio login automático marcou a fila para abrir.
 import { isVisible } from '../../core/dom/util.js';
+import { visibleLightboxes } from './page.js';
 
 export const FILA_PATH = '/sistema/Pep/Fila/FilaInicial';
 const PEP_PREFIX = '/sistema/pep';
@@ -13,6 +14,8 @@ const LOGIN_FIELD = '#inputUsuario';
 function isPepOutsideFila(root, pathname) {
   const path = pathname.toLowerCase();
   if (!path.startsWith(PEP_PREFIX) || path.includes(FILA_SEGMENT)) return false;
+  // Pop-up ou termo de uso aberto: o médico resolve antes; navegar descartaria o modal.
+  if (visibleLightboxes(root).length > 0) return false;
   return !isVisible(root.querySelector(FILA_MARKER)) && !isVisible(root.querySelector(LOGIN_FIELD));
 }
 

@@ -49,37 +49,57 @@ function findSubmit(root) {
   return submit;
 }
 
-/** Grava sem a releitura do helper, cuja mensagem de erro repetiria o valor (a senha). */
-async function fillSecret(selector, value, root) {
+/** Grava sem a releitura do helper, cuja mensagem de erro repetiria o valor (usuário ou senha). */
+async function fillPrivate(selector, value, root, label) {
   const field = root.querySelector(selector);
+  if (!field) throw new Error(`Campo de ${label} não encontrado na tela de login`);
   try {
-    await setFieldValue(field ?? selector, value, { root, verify: false });
+    await setFieldValue(field, value, { root, verify: false });
   } catch (err) {
-    throw new Error(`Não foi possível preencher a senha (${err.name})`);
+    throw new Error(`Não foi possível preencher o campo de ${label} (${err.name})`);
   }
-  if (field.value !== value) throw new Error('A senha não ficou no campo da tela de login');
+  if (field.value !== value) throw new Error(`O ${label} não ficou no campo da tela de login`);
+}
+
+/**
+ * A senha só vai para o endereço exato do SGHx da unidade (não para qualquer subdomínio
+ * do domínio da prefeitura) e para um formulário que envia para a mesma origem.
+ */
+function assertTrustedLoginPage({ allowedHost, location, root }) {
+  if (!allowedHost || location.hostname !== allowedHost) {
+    throw new Error('O endereço desta página não é o do SGHx da unidade; não preenchi usuário nem senha');
+  }
+  const form = root.querySelector(PASSWORD_FIELD)?.form;
+  const action = form?.getAttribute('action');
+  if (action && new URL(form.action).origin !== location.origin) {
+    throw new Error('O formulário de login envia para outro endereço; não preenchi usuário nem senha');
+  }
 }
 
 async function loginWithPassword({ user, password, root }) {
-  await setFieldValue(USER_FIELD, user, { root });
-  await fillSecret(PASSWORD_FIELD, password, root);
+  await fillPrivate(USER_FIELD, user, root, 'usuário');
+  await fillPrivate(PASSWORD_FIELD, password, root, 'senha');
   findSubmit(root).click();
 }
 
 /**
- * @param {{ config: { mode: string, user: string, password: string },
- *   state: { tryAttempt(step: string): boolean },
+ * @param {{ config: { mode: string, user: string, password: string }, allowedHost?: string,
+ *   state: { tryAttempt(step: string): boolean, hasLoginSubmitted(): boolean, markLoginSubmitted(): void },
  *   bridge?: { request(type: string, payload?: object): Promise<any> },
- *   root?: ParentNode, timeout?: number }} opts
- * @returns {Promise<'not-ready' | 'cooldown' | 'submitted'>}
+ *   root?: ParentNode, timeout?: number, location?: Pick<Location, 'hostname' | 'origin'> }} opts
+ * @returns {Promise<'not-ready' | 'already-submitted' | 'cooldown' | 'submitted'>}
  */
-export async function runLoginStep({ config, state, bridge, root = document, timeout }) {
+export async function runLoginStep({ config, allowedHost, state, bridge, root = document, timeout, location = globalThis.location }) {
   if (!isLoginFormReady(root)) return 'not-ready';
+  // A tela de login voltou depois de um envio (senha errada, VIDAAS cancelado): repetir pode bloquear a conta.
+  if (state.hasLoginSubmitted()) return 'already-submitted';
+  if (config.mode === 'password') assertTrustedLoginPage({ allowedHost, location, root });
   if (!state.tryAttempt('login')) return 'cooldown';
   if (config.mode === 'password') {
     await loginWithPassword({ user: config.user, password: config.password, root });
   } else {
     await loginWithCloud({ root, timeout, bridge });
   }
+  state.markLoginSubmitted();
   return 'submitted';
 }

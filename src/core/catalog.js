@@ -4,8 +4,11 @@
 // A #14 troca KNOWN_QUEUES pela lista real lida em Fila/BuscaPainelPorFilaAcaoDestino.
 import { deepFreeze } from './storage/values.js';
 
-/** Unidades suportadas. Outra unidade = nova entrada aqui. */
-export const KNOWN_UNITS = deepFreeze([{ codFces: 28, name: 'UPA JACANA' }]);
+/**
+ * Unidades suportadas. Outra unidade = nova entrada aqui. `host` é o endereço exato do SGHx
+ * da unidade: a senha do login automático só é preenchida nele, nunca em outro subdomínio.
+ */
+export const KNOWN_UNITS = deepFreeze([{ codFces: 28, name: 'UPA JACANA', host: 'upajacana.smsprefeiturasp.com.br' }]);
 
 const prontoAtendimento = (codEspecialidade, nome) => ({
   codAcaoDestino: 5, // Pronto Atendimento

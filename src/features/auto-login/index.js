@@ -8,7 +8,8 @@ import { runModuleStep } from './module-step.js';
 import { runNavigateStep } from './navigate-step.js';
 import { runQueueStep } from './queue-step.js';
 import { createAutoLoginState } from './state.js';
-import { waitForElement } from '../../core/dom/index.js';
+import { findUnit } from '../../core/catalog.js';
+import { waitForElement, waitForGone } from '../../core/dom/index.js';
 
 const LOG = '[helper-sghx] login automático';
 const CONTEXT_MODAL = '#modalLogin';
@@ -24,11 +25,17 @@ const LOGOUT_BUTTON = '.btn-sair, [onclick^="logoutArea"]';
 const PEP_PREFIX = '/sistema/pep';
 const LOGIN_FIELD = '#inputUsuario';
 
-/** Etapas na ordem do fluxo; cada uma devolve 'not-ready' quando a tela não é a dela. */
-// `entry`: etapas que entram no sistema; pausadas depois do Sair (saída manual).
+/**
+ * Etapas na ordem do fluxo; cada uma devolve 'not-ready' quando a tela não é a dela.
+ * `entry`: etapas que entram no sistema; pausadas depois do Sair (saída manual).
+ */
 const STEPS = Object.freeze([
   { id: 'module', entry: true, run: (rest) => runModuleStep(rest) },
-  { id: 'login', entry: true, run: ({ all, ...rest }) => runLoginStep({ config: all.autoLogin, ...rest }) },
+  {
+    id: 'login',
+    entry: true,
+    run: ({ all, ...rest }) => runLoginStep({ config: all.autoLogin, allowedHost: findUnit(all.unit.codFces)?.host, ...rest }),
+  },
   {
     id: 'context',
     entry: true,
@@ -52,9 +59,11 @@ async function readSettings(settings) {
 
 /**
  * @param {{ state?: ReturnType<typeof createAutoLoginState>, root?: ParentNode, timeout?: number,
- *   location?: Pick<Location, 'origin' | 'pathname' | 'assign'> }} [opts]
+ *   pollMs?: number, location?: Pick<Location, 'origin' | 'hostname' | 'pathname' | 'assign'> }} [opts]
  */
-export function createAutoLoginFeature({ state, root = document, timeout, location = globalThis.location } = {}) {
+export function createAutoLoginFeature({
+  state, root = document, timeout, pollMs = CONTEXT_MODAL_POLL_MS, location = globalThis.location,
+} = {}) {
   let running = Promise.resolve();
   let bridge;
   let toldDisabled = false;
@@ -96,17 +105,29 @@ export function createAutoLoginFeature({ state, root = document, timeout, locati
 
   /** Uma execução por vez: mudanças de tela no meio de uma etapa esperam a anterior. */
   const schedule = (settings) => {
-    running = running.then(() => runOnce(settings));
+    running = running
+      .then(() => runOnce(settings))
+      .catch((err) => console.warn(`${LOG}: falha inesperada; termine o login manualmente`, describeError(err)));
     return running;
   };
 
-  /** Página de login (tem o modal de contexto, mesmo oculto): roda de novo quando ele abrir. */
-  function watchContextModal(settings) {
+  /**
+   * Página de login (tem o modal de contexto, mesmo oculto): roda de novo toda vez que ele abre,
+   * inclusive se fechar e reabrir (erro, refazer o login). Falha ou tempo esgotado vão para o console.
+   */
+  async function watchContextModal(settings) {
     if (!root.querySelector(CONTEXT_MODAL)) return;
-    waitForElement(CONTEXT_MODAL, { visible: true, root, timeout: CONTEXT_MODAL_WAIT_MS, interval: CONTEXT_MODAL_POLL_MS })
-      .then(() => running) // deixa terminar a etapa em andamento antes de reavaliar
-      .then(() => schedule(settings))
-      .catch(() => {}); // o modal não abriu: nada a fazer
+    const opts = { root, timeout: CONTEXT_MODAL_WAIT_MS, interval: pollMs };
+    try {
+      for (;;) {
+        await waitForElement(CONTEXT_MODAL, { visible: true, ...opts });
+        await running; // deixa terminar a etapa em andamento antes de reavaliar
+        await schedule(settings);
+        await waitForGone(CONTEXT_MODAL, opts);
+      }
+    } catch (err) {
+      console.info(`${LOG}: parei de observar o modal de contexto (${describeError(err)})`);
+    }
   }
 
   /** Clique em Sair (fase de captura: antes do logoutArea() da página) marca a saída manual. */
@@ -117,21 +138,23 @@ export function createAutoLoginFeature({ state, root = document, timeout, locati
     }, true);
   }
 
-  /** Página do PEP carregada já logado: o médico entrou de novo (ou cancelou o Sair). */
-  function clearLogoutIfLoggedIn() {
+  /** Página do PEP carregada já logado: o médico entrou (ou cancelou o Sair); a aba já "entrou". */
+  function noteLoggedIn() {
     const inPep = location.pathname.toLowerCase().startsWith(PEP_PREFIX);
-    if (inPep && !root.querySelector(LOGIN_FIELD)) getState().clearManualLogout();
+    if (!inPep || root.querySelector(LOGIN_FIELD)) return;
+    getState().clearManualLogout();
+    getState().markEntered();
   }
 
   return {
     id: 'auto-login',
     async init({ settings, screen, bridge: pageBridge }) {
       bridge = pageBridge;
-      clearLogoutIfLoggedIn();
+      noteLoggedIn();
       watchLogout();
       screen.subscribe(() => { schedule(settings); });
       schedule(settings);
-      watchContextModal(settings);
+      watchContextModal(settings); // roda em segundo plano; erros já tratados dentro
     },
     /** Para testes: resolve quando não há etapa em andamento. */
     idle: () => running,

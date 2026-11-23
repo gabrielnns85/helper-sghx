@@ -5,7 +5,14 @@ import { setPageFieldValue } from './dom/page-fields.js';
 const CLOUD_PROVIDER_MODAL = '#modalProvedorCertificado';
 const MODAL_SUBMIT = '#modalLoginEntra';
 
-const isShown = (win, el) => Boolean(el) && win.getComputedStyle(el).display !== 'none';
+/** Visível de verdade: nem ele nem um ancestral escondido. */
+function isShown(win, el) {
+  for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+    const style = win.getComputedStyle(node);
+    if (node.hidden || style.display === 'none' || style.visibility === 'hidden') return false;
+  }
+  return Boolean(el);
+}
 
 /**
  * Entrar do Certificado em Nuvem (#10). O botão é <a href="javascript:provedorEscolhido()">:
@@ -15,6 +22,8 @@ const isShown = (win, el) => Boolean(el) && win.getComputedStyle(el).display !==
 function submitCloudProvider(win) {
   const modal = win.document.querySelector(CLOUD_PROVIDER_MODAL);
   if (!isShown(win, modal)) throw new Error('O modal "Certificado em Nuvem" não está aberto');
+  const provider = modal.querySelector('#comboProvedor')?.selectedOptions?.[0]?.text ?? '';
+  if (!/vidaas/i.test(provider)) throw new Error('O provedor escolhido não é o VIDAAS; não cliquei em entrar');
   const button = modal.querySelector(MODAL_SUBMIT);
   if (!button) throw new Error('Botão "entrar" do Certificado em Nuvem não encontrado');
   button.click();

@@ -303,13 +303,13 @@ describe('runContextStep: modal de contexto', () => {
   it('a lista recarregou e zerou um campo antes do clique: confere, para e não entra', async () => {
     $('#comboSubModulo').addEventListener('change', () => { $('#comboEstabelecimento').value = ''; });
     $('#comboSubModulo').innerHTML = '<option value="">Selecione</option><option value="2">PRONTO ATENDIMENTO</option>';
-    await expect(run()).rejects.toThrow(/conferi|divergi/i);
+    await expect(run()).rejects.toThrow(/diverg/i);
     expect(entrar).not.toHaveBeenCalled();
   });
 
   it('opção 59 com texto de SGHX: recusa (cliente errado), sem entrar', async () => {
     $('#comboMunicipio').innerHTML = '<option value="">Selecione</option><option value="59">SBCD - SAO PAULO - SGHX</option>';
-    await expect(run()).rejects.toThrow(/conferi|divergi|cliente/i);
+    await expect(run()).rejects.toThrow(/diverg|cliente/i);
     expect(entrar).not.toHaveBeenCalled();
   });
 
