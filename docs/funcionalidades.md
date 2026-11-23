@@ -58,6 +58,16 @@ registra uma **seção no painel** do SGHx, habilitada conforme a tela (`screen.
 A API de seções e mensagens está em [ui-panel.md](ui-panel.md) (`ctx.ui`). A funcionalidade **não cria UI
 própria solta** na página do SGHx: tudo passa pelo painel.
 
+### Exemplo: atualizar a fila (#13, `src/features/queue-refresh`)
+
+Na tela da fila, a cada 30 s (valor fixo na F1) clica em `#FilaToolbar_Atualizar` e reseleciona a categoria de
+`settings.queueRefresh.queue`. Só roda com `queueRefresh.enabled` ligado e fila definida. Não atualiza com modal
+(`.lightbox`) visível nem com o médico digitando (foco em campo de texto ou tecla nos últimos 5 s); tenta de novo
+a cada 1 s, sem esperar outros 30 s. O painel mostra a fila, "atualizado há X s", o estado e **Pausar/Retomar**
+(a pausa vale até recarregar a página). Fila vazia some da lista do SGHx: não é erro, o painel avisa. Botão
+Atualizar ausente, erro no ciclo ou mais de 2× o intervalo sem atualizar viram alerta de erro visível. O timer
+para ao sair da fila.
+
 ## 4. Segurança do paciente
 
 - **Nunca salvar no prontuário sem confirmação do médico.** Nenhuma configuração pode dispensar isso: o botão
