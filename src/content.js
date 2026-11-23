@@ -2,6 +2,7 @@
 import { createBridgeClient } from './core/bridge-client.js';
 import { createFeatureRegistry } from './features/index.js';
 import { createAutoLoginFeature } from './features/auto-login/index.js';
+import { createQueueRefreshFeature } from './features/queue-refresh/index.js';
 import { watchScreen } from './core/screen/index.js';
 import { SITE } from './core/sites.js';
 import { bindSessionToScreen, createSessionClient, createSettings } from './core/storage/index.js';
@@ -25,6 +26,7 @@ async function main() {
   const bridge = createBridgeClient(window, { timeoutMs: 1000 });
   const features = createFeatureRegistry();
   features.register(createAutoLoginFeature());
+  features.register(createQueueRefreshFeature());
 
   // Tela ativa do SGHx: as funcionalidades usam screen.current() e screen.subscribe().
   const screen = watchScreen();

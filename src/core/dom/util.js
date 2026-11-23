@@ -70,3 +70,6 @@ export function readText(el) {
     .filter(Boolean)
     .join('\n');
 }
+
+/** .lightbox (modais de tela e pop-ups do SGHx) visíveis, na ordem do DOM. */
+export const visibleLightboxes = (root = document) => [...root.querySelectorAll('.lightbox')].filter(isVisible);
