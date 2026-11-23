@@ -4,6 +4,7 @@
 // vez só por intervalo (state.js), então não entra em loop.
 import { runContextStep } from './context-step.js';
 import { runLoginStep } from './login-step.js';
+import { runModuleStep } from './module-step.js';
 import { runQueueStep } from './queue-step.js';
 import { createAutoLoginState } from './state.js';
 import { waitForElement } from '../../core/dom/index.js';
@@ -20,6 +21,7 @@ const CONTEXT_MODAL_POLL_MS = 1000;
 
 /** Etapas na ordem do fluxo; cada uma devolve 'not-ready' quando a tela não é a dela. */
 const STEPS = Object.freeze([
+  { id: 'module', run: (rest) => runModuleStep(rest) },
   { id: 'login', run: ({ all, ...rest }) => runLoginStep({ config: all.autoLogin, ...rest }) },
   {
     id: 'context',
@@ -45,15 +47,24 @@ async function readSettings(settings) {
  */
 export function createAutoLoginFeature({ state, root = document, timeout } = {}) {
   let running = Promise.resolve();
+  let toldDisabled = false;
 
   async function runOnce(settings) {
     const all = await readSettings(settings);
-    if (!all?.autoLogin.enabled) return;
+    if (!all) return;
+    if (!all.autoLogin.enabled) {
+      if (!toldDisabled) console.info(`${LOG}: desligado nas opções da extensão`);
+      toldDisabled = true;
+      return;
+    }
     const loginState = state ?? createAutoLoginState();
     for (const step of STEPS) {
       try {
         const result = await step.run({ all, state: loginState, root, timeout });
-        if (result !== 'not-ready') return;
+        if (result === 'not-ready') continue;
+        // Só o id da etapa e o resultado: nunca usuário, senha nem dado da página.
+        console.info(`${LOG}: etapa "${step.id}" → ${result}`);
+        return;
       } catch (err) {
         console.warn(`${LOG}: a etapa "${step.id}" falhou; termine o login manualmente`, describeError(err));
         return;
