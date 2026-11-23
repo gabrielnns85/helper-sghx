@@ -34,8 +34,9 @@ async function main() {
   const settings = createSettings();
   bindSessionToScreen({ session, screen });
 
-  initUi();
-  await features.initAll({ site: SITE.SGHX, bridge, screen, session, settings });
+  // Painel flutuante: as funcionalidades registram seções e mensagens por ctx.ui.
+  const ui = await initUi({ screen });
+  await features.initAll({ site: SITE.SGHX, bridge, screen, session, settings, ui });
 
   try {
     const page = await pingBridge(bridge);

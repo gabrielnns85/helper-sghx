@@ -2,11 +2,12 @@
  * Registro das funcionalidades. Cada funcionalidade é { id, init(ctx) }.
  * Funcionalidades são adicionadas nas próprias issues (login, fila, atestado…).
  * ctx = { site, session, settings } em todos os sites (src/core/sites.js), mais
- * { bridge, screen } no SGHx: `screen` é o watchScreen (src/core/screen), para agir
+ * { bridge, screen, ui } no SGHx: `screen` é o watchScreen (src/core/screen), para agir
  * só na tela certa (`screen.current().id`) e reagir a mudanças (`screen.subscribe`).
  * `session` guarda dados do atendimento (nunca persistidos) e `settings` as
  * configurações do médico (`settings.subscribe` aplica mudanças sem recarregar);
- * ver docs/storage.md. Opções e painel seguem docs/funcionalidades.md.
+ * ver docs/storage.md. `ui` é o painel flutuante (seções e mensagens, docs/ui-panel.md).
+ * Opções e painel seguem docs/funcionalidades.md.
  */
 export function createFeatureRegistry() {
   const features = [];
