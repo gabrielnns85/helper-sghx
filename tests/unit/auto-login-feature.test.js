@@ -158,15 +158,11 @@ describe('createAutoLoginFeature', () => {
     const PASSWORD_ON = { enabled: true, mode: 'password', user: 'medico', password: 'x1' };
     const pepLocation = (pathname) => sghxLocation(pathname);
 
-    beforeEach(() => { window.logoutArea = vi.fn(); }); // a função da página, chamada pelo onclick
-    afterEach(() => { delete window.logoutArea; });
-
     function addSairButton() {
       const sair = document.createElement('input');
       sair.type = 'button';
       sair.className = 'btn-sair';
       sair.value = 'Sair';
-      sair.setAttribute('onclick', 'logoutArea()');
       document.body.appendChild(sair);
       return sair;
     }
