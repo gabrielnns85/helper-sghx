@@ -1,4 +1,4 @@
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, vi } from 'vitest';
 import ko from 'knockout';
 import { createRequest } from '../../src/core/bridge-protocol.js';
 import { createPageHandlers, handleRequest } from '../../src/core/bridge-handlers.js';
@@ -57,6 +57,38 @@ describe('bridge-handlers (mundo MAIN)', () => {
       const res = await handleRequest(createRequest('setFieldValue', { selector: 42 }, 'r6'), createPageHandlers(window));
       expect(res).toMatchObject({ ok: false });
       expect(res.error).toMatch(/seletor/i);
+    });
+  });
+
+  describe('submitCloudProvider (entrar do Certificado em Nuvem)', () => {
+    // No SGHx o entrar é <a href="javascript:provedorEscolhido()">: clicado do mundo isolado,
+    // a CSP da extensão bloqueia o javascript:. Por isso o clique sai do mundo MAIN.
+    const markup = (display) => `
+      <div id="modalLogin" class="lightbox" style="display:none"><a id="modalLoginEntra" class="ctx">entrar</a></div>
+      <div id="modalProvedorCertificado" class="lightbox" style="display:${display}">
+        <select id="comboProvedor"><option value="1">SAFEID</option><option value="5">VIDAAS</option></select>
+        <a id="modalLoginEntra" class="prov">entrar</a>
+      </div>`;
+
+    afterEach(() => { document.body.innerHTML = ''; });
+
+    it('clica no entrar do modal do provedor, não no #modalLoginEntra de outro modal', async () => {
+      document.body.innerHTML = markup('block');
+      const clicked = [];
+      document.querySelectorAll('[id="modalLoginEntra"]').forEach((a) => a.addEventListener('click', () => clicked.push(a.className)));
+      const res = await handleRequest(createRequest('submitCloudProvider', null, 'r7'), createPageHandlers(window));
+      expect(res).toMatchObject({ ok: true });
+      expect(clicked).toEqual(['prov']);
+    });
+
+    it('modal do provedor fechado: erro, sem clicar', async () => {
+      document.body.innerHTML = markup('none');
+      const clicked = vi.fn();
+      document.querySelectorAll('[id="modalLoginEntra"]').forEach((a) => a.addEventListener('click', clicked));
+      const res = await handleRequest(createRequest('submitCloudProvider', null, 'r8'), createPageHandlers(window));
+      expect(res.ok).toBe(false);
+      expect(res.error).toMatch(/certificado em nuvem/i);
+      expect(clicked).not.toHaveBeenCalled();
     });
   });
 });
