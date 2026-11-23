@@ -4,6 +4,7 @@ import { addScreenModal } from '../helpers/screen-modals.js';
 import { runLoginStep } from '../../src/features/auto-login/login-step.js';
 import { runContextStep } from '../../src/features/auto-login/context-step.js';
 import { runQueueStep } from '../../src/features/auto-login/queue-step.js';
+import { runModuleStep } from '../../src/features/auto-login/module-step.js';
 import { NO_QUEUE } from '../../src/core/catalog.js';
 
 const TIMEOUT = 300;
@@ -36,6 +37,40 @@ function addErrorDialog() {
 }
 
 afterEach(clearFixture);
+
+describe('runModuleStep: tela de Módulos', () => {
+  let opened;
+
+  beforeEach(() => {
+    loadFixture('modulos');
+    opened = vi.fn();
+    document.querySelectorAll('.card-modulo-sghx').forEach((card) => card.addEventListener('click', () => opened(card.id)));
+  });
+
+  it('clica em Módulo Atendimento (e só nele)', async () => {
+    expect(await runModuleStep({ state: fakeState() })).toBe('submitted');
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect(opened).toHaveBeenCalledWith('2');
+  });
+
+  it('fora da tela de Módulos: não faz nada', async () => {
+    loadFixture('login');
+    const state = fakeState();
+    expect(await runModuleStep({ state })).toBe('not-ready');
+    expect(state.tryAttempt).not.toHaveBeenCalled();
+  });
+
+  it('sem o card de Atendimento: não clica em outro módulo', async () => {
+    document.querySelector('.card-modulo-sghx[id="2"]').remove();
+    expect(await runModuleStep({ state: fakeState() })).toBe('not-ready');
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it('já tentou há pouco: não tenta de novo', async () => {
+    expect(await runModuleStep({ state: fakeState({ blocked: ['module'] }) })).toBe('cooldown');
+    expect(opened).not.toHaveBeenCalled();
+  });
+});
 
 describe('runLoginStep: Login Nuvem (VIDAAS)', () => {
   let entrar;

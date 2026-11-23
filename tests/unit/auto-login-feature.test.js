@@ -108,6 +108,36 @@ describe('createAutoLoginFeature', () => {
     expect(clicked).toHaveBeenCalledTimes(1);
   });
 
+  it('na tela de Módulos: abre o Módulo Atendimento', async () => {
+    loadFixture('modulos');
+    const opened = vi.fn();
+    $('.card-modulo-sghx[id="2"]').addEventListener('click', opened);
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    await feature.init(fakeCtx(withAutoLogin({ enabled: true })));
+    await feature.idle();
+    expect(opened).toHaveBeenCalledTimes(1);
+  });
+
+  it('registra no console a etapa que agiu e o resultado (sem dados)', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    await feature.init(fakeCtx(withAutoLogin({ enabled: true, mode: 'password', user: 'medico', password: 'S3gr3d0' })));
+    await feature.idle();
+    expect(info).toHaveBeenCalledWith(expect.stringMatching(/login automático: etapa "login" → submitted/));
+    expect(JSON.stringify(info.mock.calls)).not.toMatch(/S3gr3d0|medico/);
+  });
+
+  it('desligado: diz no console que está desligado, uma vez por carregamento', async () => {
+    const info = vi.spyOn(console, 'info').mockImplementation(() => {});
+    const ctx = fakeCtx(DEFAULT_SETTINGS);
+    const feature = createAutoLoginFeature({ state: fakeState(), timeout: TIMEOUT });
+    await feature.init(ctx);
+    await feature.idle();
+    ctx.screen.emit();
+    await feature.idle();
+    expect(info.mock.calls.filter(([m]) => /desligado/.test(m))).toHaveLength(1);
+  });
+
   it('falha numa etapa: avisa no console sem a senha e não quebra a extensão', async () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
     $('#inputSenha').readOnly = true;
