@@ -23,7 +23,7 @@ describe('validateSetting', () => {
   });
 
   it('chave sem regra não tem erros', () => {
-    expect(validateSetting('autoLogin', { enabled: true })).toEqual([]);
+    expect(validateSetting('chaveSemRegra', { qualquer: 1 })).toEqual([]);
   });
 
   it.each([30, 45, 360])('aceita intervalo de %i s', (intervalSec) => {
@@ -64,6 +64,49 @@ describe('validateSetting', () => {
   it('aceita a unidade conhecida e recusa as outras', () => {
     expect(validateSetting('unit', { codFces: 28 })).toEqual([]);
     expect(paths(validateSetting('unit', { codFces: 2 }))).toEqual(['unit.codFces']);
+  });
+});
+
+describe('autoLogin', () => {
+  const autoLogin = (patch = {}) => ({ ...DEFAULT_SETTINGS.autoLogin, ...patch });
+  const withPassword = (patch = {}) => autoLogin({ mode: 'password', user: 'medico', password: 'segredo', ...patch });
+
+  it('modo nuvem ligado não precisa de usuário nem senha', () => {
+    expect(validateSetting('autoLogin', autoLogin({ enabled: true }))).toEqual([]);
+  });
+
+  it('modo usuário e senha ligado, com os dois preenchidos, é aceito', () => {
+    expect(validateSetting('autoLogin', withPassword({ enabled: true }))).toEqual([]);
+  });
+
+  it('recusa modo desconhecido', () => {
+    expect(paths(validateSetting('autoLogin', autoLogin({ mode: 'certificado' })))).toEqual(['autoLogin.mode']);
+  });
+
+  it('modo usuário e senha ligado exige usuário e senha', () => {
+    const errors = validateSetting('autoLogin', withPassword({ enabled: true, user: '  ', password: '' }));
+    expect(paths(errors)).toEqual(['autoLogin.user', 'autoLogin.password']);
+  });
+
+  it('desligado, deixa salvar o modo usuário e senha incompleto', () => {
+    expect(validateSetting('autoLogin', withPassword({ enabled: false, password: '' }))).toEqual([]);
+  });
+
+  it('no modo nuvem não guarda senha (senha só fica salva quando é usada)', () => {
+    const errors = validateSetting('autoLogin', autoLogin({ mode: 'cloud', password: 'segredo' }));
+    expect(paths(errors)).toEqual(['autoLogin.password']);
+  });
+
+  it.each([
+    ['usuário', { user: 'u'.repeat(81) }, 'autoLogin.user'],
+    ['senha', { password: 's'.repeat(129) }, 'autoLogin.password'],
+  ])('recusa %s longo demais', (_campo, patch, path) => {
+    expect(paths(validateSetting('autoLogin', withPassword(patch)))).toEqual([path]);
+  });
+
+  it('as mensagens de erro nunca repetem a senha', () => {
+    const errors = validateSetting('autoLogin', withPassword({ mode: 'cloud', password: 'segredo-123' }));
+    expect(errors.map((e) => e.message).join(' ')).not.toContain('segredo-123');
   });
 });
 

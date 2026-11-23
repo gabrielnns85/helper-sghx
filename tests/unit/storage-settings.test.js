@@ -230,7 +230,7 @@ describe('DEFAULT_SETTINGS', () => {
       intervalSec: 30,
       queue: { codAcaoDestino: 0, codEspecialidade: 0, indSituacao: 0 }, // nenhuma fila: o médico escolhe
     });
-    expect(DEFAULT_SETTINGS.autoLogin).toEqual({ enabled: false });
+    expect(DEFAULT_SETTINGS.autoLogin).toEqual({ enabled: false, mode: 'cloud', user: '', password: '' });
   });
 
   it('é imutável', () => {
