@@ -4,7 +4,10 @@
 import { fieldForPath, formToSettings, queueOptions, settingsToForm } from './form.js';
 
 const CHECKBOXES = Object.freeze(['autoLoginEnabled', 'queueRefreshEnabled']);
-const TEXT_FIELDS = Object.freeze(['intervalSec', 'queue', 'unitName', 'codFces']);
+// autoLoginMode é um grupo de rádios: o RadioNodeList também tem .value.
+const TEXT_FIELDS = Object.freeze([
+  'autoLoginMode', 'autoLoginUser', 'autoLoginPassword', 'intervalSec', 'queue', 'unitName', 'codFces',
+]);
 
 const MESSAGES = Object.freeze({
   saved: 'Configurações salvas. Já valem nas abas abertas do SGHx.',
@@ -31,10 +34,16 @@ function renderQueueOptions(form) {
   fieldOf(form, 'queue').replaceChildren(...options);
 }
 
+/** Usuário e senha só aparecem no modo usuário e senha. */
+function syncCredentials(form) {
+  form.querySelector('#autoLogin-credentials').hidden = fieldOf(form, 'autoLoginMode').value !== 'password';
+}
+
 function fillForm(form, all) {
   const values = settingsToForm(all);
   CHECKBOXES.forEach((name) => { fieldOf(form, name).checked = values[name]; });
   TEXT_FIELDS.forEach((name) => { fieldOf(form, name).value = values[name]; });
+  syncCredentials(form);
 }
 
 const readValues = (form) => ({
@@ -106,6 +115,9 @@ export async function initOptionsPage({ settings, root = document, confirm = (m)
   form.addEventListener('submit', (event) => {
     event.preventDefault();
     save();
+  });
+  form.addEventListener('change', (event) => {
+    if (event.target.name === 'autoLoginMode') syncCredentials(form);
   });
   root.querySelector('#restore-defaults').addEventListener('click', () => restoreDefaults());
 

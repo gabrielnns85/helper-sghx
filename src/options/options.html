@@ -29,6 +29,31 @@
           <input name="autoLoginEnabled" type="checkbox" aria-describedby="autoLogin-warning">
           Ligar o login automático no SGHx
         </label>
+
+        <div role="radiogroup" aria-labelledby="autoLoginMode-label">
+          <p id="autoLoginMode-label">Como entrar</p>
+          <label class="toggle">
+            <input name="autoLoginMode" type="radio" value="cloud">
+            Login Nuvem (VIDAAS): a extensão escolhe o certificado em nuvem e você confirma no app
+          </label>
+          <label class="toggle">
+            <input name="autoLoginMode" type="radio" value="password">
+            Usuário e senha do SGHx
+          </label>
+        </div>
+
+        <div id="autoLogin-credentials" hidden>
+          <label for="autoLoginUser">Usuário do SGHx</label>
+          <input id="autoLoginUser" name="autoLoginUser" type="text" autocomplete="off" maxlength="80" aria-describedby="autoLoginUser-error">
+          <p class="error" id="autoLoginUser-error" data-error-for="autoLoginUser"></p>
+
+          <label for="autoLoginPassword">Senha do SGHx</label>
+          <input id="autoLoginPassword" name="autoLoginPassword" type="password" autocomplete="new-password" maxlength="128" aria-describedby="autoLoginPassword-hint autoLoginPassword-error">
+          <p class="hint" id="autoLoginPassword-hint">
+            Fase de teste: a senha fica guardada neste perfil do Chrome sem criptografia (o cofre vem na #64).
+          </p>
+          <p class="error" id="autoLoginPassword-error" data-error-for="autoLoginPassword"></p>
+        </div>
         <p class="warning" id="autoLogin-warning">
           Use só no seu perfil pessoal do Chrome, nunca em computador compartilhado: outra pessoa entraria no SGHx
           com o seu usuário.
@@ -44,7 +69,7 @@
 
         <label for="queue">Fila a selecionar</label>
         <select id="queue" name="queue" aria-describedby="queue-hint queue-error"></select>
-        <p class="hint" id="queue-hint">Obrigatória para ligar a atualização.</p>
+        <p class="hint" id="queue-hint">Obrigatória para ligar a atualização. O login automático também abre esta fila depois de entrar.</p>
         <p class="error" id="queue-error" data-error-for="queue"></p>
 
         <label for="intervalSec">Intervalo de atualização (segundos)</label>

@@ -6,7 +6,8 @@ import { validateSetting } from '../core/storage/settings-rules.js';
 
 /**
  * @typedef {{
- *   autoLoginEnabled: boolean, queueRefreshEnabled: boolean,
+ *   autoLoginEnabled: boolean, autoLoginMode: string, autoLoginUser: string, autoLoginPassword: string,
+ *   queueRefreshEnabled: boolean,
  *   intervalSec: string, queue: string, unitName: string, codFces: string,
  * }} FormValues
  */
@@ -22,6 +23,9 @@ export function queueOptions() {
 export function settingsToForm(settings) {
   return {
     autoLoginEnabled: settings.autoLogin.enabled,
+    autoLoginMode: settings.autoLogin.mode,
+    autoLoginUser: settings.autoLogin.user,
+    autoLoginPassword: settings.autoLogin.password,
     queueRefreshEnabled: settings.queueRefresh.enabled,
     intervalSec: String(settings.queueRefresh.intervalSec),
     queue: queueKey(settings.queueRefresh.queue),
@@ -45,6 +49,17 @@ function queueFromKey(key) {
   return { codAcaoDestino, codEspecialidade, indSituacao };
 }
 
+/** Modo nuvem não usa senha: o que estiver digitado é descartado, não fica salvo à toa. */
+function autoLoginFromForm({ autoLoginEnabled, autoLoginMode, autoLoginUser, autoLoginPassword }) {
+  const mode = String(autoLoginMode);
+  return {
+    enabled: Boolean(autoLoginEnabled),
+    mode,
+    user: String(autoLoginUser).trim(),
+    password: mode === 'password' ? String(autoLoginPassword) : '',
+  };
+}
+
 /**
  * Valores do formulário → configurações prontas para settings.set, ou os erros por campo.
  * O nome da unidade na tela é só leitura e não é gravado.
@@ -56,7 +71,7 @@ export function formToSettings(values) {
   const queueErrors = queue ? [] : [{ path: 'queueRefresh.queue', message: 'Fila não reconhecida: escolha uma fila da lista' }];
   const candidate = {
     unit: { codFces: toNumber(values.codFces) },
-    autoLogin: { enabled: Boolean(values.autoLoginEnabled) },
+    autoLogin: autoLoginFromForm(values),
     queueRefresh: {
       enabled: Boolean(values.queueRefreshEnabled),
       intervalSec: toNumber(values.intervalSec),
@@ -73,6 +88,8 @@ const FIELD_BY_PATH = Object.freeze({
   'unit.codFces': 'codFces',
   'queueRefresh.intervalSec': 'intervalSec',
   'queueRefresh.queue': 'queue',
+  'autoLogin.user': 'autoLoginUser',
+  'autoLogin.password': 'autoLoginPassword',
 });
 
 /** Campo do formulário onde mostrar o erro de `path` (null = só no status). */
