@@ -81,6 +81,26 @@ describe('bridge-handlers (mundo MAIN)', () => {
       expect(clicked).toEqual(['prov']);
     });
 
+    it('provedor diferente de VIDAAS escolhido: erro, sem clicar', async () => {
+      document.body.innerHTML = markup('block');
+      document.querySelector('#comboProvedor').value = '1';
+      const clicked = vi.fn();
+      document.querySelectorAll('[id="modalLoginEntra"]').forEach((a) => a.addEventListener('click', clicked));
+      const res = await handleRequest(createRequest('submitCloudProvider', null, 'r9'), createPageHandlers(window));
+      expect(res.ok).toBe(false);
+      expect(res.error).toMatch(/vidaas/i);
+      expect(clicked).not.toHaveBeenCalled();
+    });
+
+    it('modal escondido por um ancestral: conta como fechado', async () => {
+      document.body.innerHTML = `<div style="display:none">${markup('block')}</div>`;
+      const clicked = vi.fn();
+      document.querySelectorAll('[id="modalLoginEntra"]').forEach((a) => a.addEventListener('click', clicked));
+      const res = await handleRequest(createRequest('submitCloudProvider', null, 'r10'), createPageHandlers(window));
+      expect(res.ok).toBe(false);
+      expect(clicked).not.toHaveBeenCalled();
+    });
+
     it('modal do provedor fechado: erro, sem clicar', async () => {
       document.body.innerHTML = markup('none');
       const clicked = vi.fn();

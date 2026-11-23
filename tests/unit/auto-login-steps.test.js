@@ -9,14 +9,20 @@ import { FILA_PATH, runNavigateStep } from '../../src/features/auto-login/naviga
 import { NO_QUEUE } from '../../src/core/catalog.js';
 
 const TIMEOUT = 300;
+const HOST = window.location.hostname;
 const PEDIATRIA = Object.freeze({ codAcaoDestino: 5, codEspecialidade: 36, indSituacao: 1 });
 const CLOUD = Object.freeze({ enabled: true, mode: 'cloud', user: '', password: '' });
 const PASSWORD = Object.freeze({ enabled: true, mode: 'password', user: 'medico', password: 'S3nh@-secreta' });
 
 /** Estado falso: libera tudo, a não ser que `blocked` diga o contrário. */
-function fakeState({ blocked = [], pending = null } = {}) {
+function fakeState({ blocked = [], pending = null, entered = false, loginSubmitted = false } = {}) {
   let queue = pending;
+  let submitted = loginSubmitted;
   return {
+    hasEntered: vi.fn(() => entered),
+    markEntered: vi.fn(),
+    hasLoginSubmitted: vi.fn(() => submitted),
+    markLoginSubmitted: vi.fn(() => { submitted = true; }),
     tryAttempt: vi.fn((step) => !blocked.includes(step)),
     markQueuePending: vi.fn((q) => { queue = q; }),
     takeQueuePending: vi.fn(() => { const q = queue; queue = null; return q; }),
@@ -63,6 +69,17 @@ describe('runModuleStep: tela de Módulos', () => {
 
   it('sem o card de Atendimento: não clica em outro módulo', async () => {
     document.querySelector('.card-modulo-sghx[id="2"]').remove();
+    expect(await runModuleStep({ state: fakeState() })).toBe('not-ready');
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it('já entrou nesta aba (voltou aos Módulos de propósito): não clica', async () => {
+    expect(await runModuleStep({ state: fakeState({ entered: true }) })).toBe('not-ready');
+    expect(opened).not.toHaveBeenCalled();
+  });
+
+  it('com pop-up aberto: não clica', async () => {
+    addErrorDialog();
     expect(await runModuleStep({ state: fakeState() })).toBe('not-ready');
     expect(opened).not.toHaveBeenCalled();
   });
@@ -137,7 +154,7 @@ describe('runLoginStep: usuário e senha', () => {
   });
 
   it('preenche usuário e senha e clica em Entrar', async () => {
-    const result = await runLoginStep({ config: PASSWORD, state: fakeState(), timeout: TIMEOUT });
+    const result = await runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState(), timeout: TIMEOUT });
     expect(result).toBe('submitted');
     expect($('#inputUsuario').value).toBe('medico');
     expect($('#inputSenha').value).toBe('S3nh@-secreta');
@@ -146,10 +163,64 @@ describe('runLoginStep: usuário e senha', () => {
 
   it('se o campo de senha recusar, o erro não repete a senha', async () => {
     $('#inputSenha').readOnly = true;
-    const err = await runLoginStep({ config: PASSWORD, state: fakeState(), timeout: TIMEOUT }).catch((e) => e);
+    const err = await runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState(), timeout: TIMEOUT }).catch((e) => e);
     expect(err).toBeInstanceOf(Error);
     expect(err.message).not.toContain('S3nh@-secreta');
     expect(submitted).not.toHaveBeenCalled();
+  });
+});
+
+describe('runLoginStep: segurança da senha e tentativas', () => {
+  beforeEach(() => loadFixture('login'));
+  const run = (patch = {}) => runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState(), timeout: TIMEOUT, ...patch });
+
+  it('endereço diferente do SGHx esperado: não preenche a senha (subdomínio falso)', async () => {
+    await expect(run({ allowedHost: 'upajacana.smsprefeiturasp.com.br' })).rejects.toThrow(/endereço/i);
+    expect($('#inputSenha').value).toBe('');
+    expect($('#inputUsuario').value).toBe('');
+  });
+
+  it('sem endereço esperado configurado: não preenche', async () => {
+    await expect(run({ allowedHost: undefined })).rejects.toThrow(/endereço/i);
+    expect($('#inputSenha').value).toBe('');
+  });
+
+  it('formulário que envia para outra origem: não preenche a senha', async () => {
+    $('form').setAttribute('action', 'https://exemplo-falso.invalid/coleta');
+    await expect(run()).rejects.toThrow(/outro endereço|formulário/i);
+    expect($('#inputSenha').value).toBe('');
+  });
+
+  it('formulário com action do próprio SGHx é aceito', async () => {
+    $('form').setAttribute('action', '/sistema/Login?ReturnUrl=%2fsistema%2fpep');
+    expect(await run()).toBe('submitted');
+  });
+
+  it('o usuário não aparece na mensagem de erro (pode ser o CPF do profissional)', async () => {
+    $('#inputUsuario').readOnly = true;
+    const err = await run().catch((e) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect(err.message).not.toContain('medico');
+  });
+
+  it('sem o campo de senha na tela: erro claro (sem TypeError)', async () => {
+    $('#inputSenha').remove();
+    const err = await run().catch((e) => e);
+    expect(err.message).toMatch(/senha/i);
+    expect(err).not.toBeInstanceOf(TypeError);
+  });
+
+  it('depois de enviar, marca "login enviado"', async () => {
+    const state = fakeState();
+    await run({ state });
+    expect(state.markLoginSubmitted).toHaveBeenCalledTimes(1);
+  });
+
+  it('a tela de login voltou depois de um envio (senha errada, VIDAAS cancelado): não repete sozinho', async () => {
+    const state = fakeState({ loginSubmitted: true });
+    expect(await run({ state })).toBe('already-submitted');
+    expect($('#inputSenha').value).toBe('');
+    expect(state.tryAttempt).not.toHaveBeenCalled();
   });
 });
 
@@ -165,17 +236,17 @@ describe('runLoginStep: quando não age', () => {
 
   it('com pop-up de erro aberto (ex.: senha errada): para', async () => {
     addErrorDialog();
-    expect(await runLoginStep({ config: PASSWORD, state: fakeState(), timeout: TIMEOUT })).toBe('not-ready');
+    expect(await runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState(), timeout: TIMEOUT })).toBe('not-ready');
     expect($('#inputSenha').value).toBe('');
   });
 
   it('com outro modal de login aberto (dois fatores, termo de uso…): para', async () => {
     addScreenModal({ id: 'modalAutentDoisFatores', title: 'Autenticação', root: document.body });
-    expect(await runLoginStep({ config: PASSWORD, state: fakeState(), timeout: TIMEOUT })).toBe('not-ready');
+    expect(await runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState(), timeout: TIMEOUT })).toBe('not-ready');
   });
 
   it('já tentou há pouco (sem loop): não tenta de novo', async () => {
-    const result = await runLoginStep({ config: PASSWORD, state: fakeState({ blocked: ['login'] }), timeout: TIMEOUT });
+    const result = await runLoginStep({ config: PASSWORD, allowedHost: HOST, state: fakeState({ blocked: ['login'] }), timeout: TIMEOUT });
     expect(result).toBe('cooldown');
     expect($('#inputSenha').value).toBe('');
   });
@@ -219,6 +290,26 @@ describe('runContextStep: modal de contexto', () => {
   it('ocupação sem escolha: para no modal para o médico escolher, sem clicar em entrar', async () => {
     $('#comboOcupacao').innerHTML = '<option value="">Selecione</option><option value="1">MEDICO TESTE</option><option value="2">OUTRA</option>';
     expect(await run()).toBe('needs-occupation');
+    expect(entrar).not.toHaveBeenCalled();
+  });
+
+  it('ocupação sem escolha: marca a fila para abrir quando o médico entrar à mão', async () => {
+    $('#comboOcupacao').innerHTML = '<option value="">Selecione</option><option value="2">OUTRA</option>';
+    const state = fakeState();
+    expect(await run({ queue: PEDIATRIA, state })).toBe('needs-occupation');
+    expect(state.markQueuePending).toHaveBeenCalledWith(PEDIATRIA);
+  });
+
+  it('a lista recarregou e zerou um campo antes do clique: confere, para e não entra', async () => {
+    $('#comboSubModulo').addEventListener('change', () => { $('#comboEstabelecimento').value = ''; });
+    $('#comboSubModulo').innerHTML = '<option value="">Selecione</option><option value="2">PRONTO ATENDIMENTO</option>';
+    await expect(run()).rejects.toThrow(/conferi|divergi/i);
+    expect(entrar).not.toHaveBeenCalled();
+  });
+
+  it('opção 59 com texto de SGHX: recusa (cliente errado), sem entrar', async () => {
+    $('#comboMunicipio').innerHTML = '<option value="">Selecione</option><option value="59">SBCD - SAO PAULO - SGHX</option>';
+    await expect(run()).rejects.toThrow(/conferi|divergi|cliente/i);
     expect(entrar).not.toHaveBeenCalled();
   });
 
@@ -290,6 +381,13 @@ describe('runNavigateStep: depois de entrar, vai para Atendimento > Fila de Aten
     expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA }), location })).toBe('not-ready');
   });
 
+  it('com pop-up ou termo de uso aberto: não navega nem descarta o modal', async () => {
+    addErrorDialog();
+    const location = fakeLocation('/sistema/pep');
+    expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA }), location })).toBe('not-ready');
+    expect(location.assign).not.toHaveBeenCalled();
+  });
+
   it('já tentou há pouco: não tenta de novo', async () => {
     const location = fakeLocation('/sistema/pep');
     expect(await runNavigateStep({ state: fakeState({ pending: PEDIATRIA, blocked: ['navigate'] }), location })).toBe('cooldown');
@@ -326,6 +424,14 @@ describe('runQueueStep: abre a fila configurada depois de entrar', () => {
   it('data-model malformado é ignorado', async () => {
     $('#Fila_GridAcao tr').setAttribute('data-model', '{quebrado');
     expect(await runQueueStep({ state: fakeState({ pending: PEDIATRIA }), timeout: TIMEOUT })).toBe('selected');
+  });
+
+  it('com pop-up aberto: não clica e não consome a marca', async () => {
+    addErrorDialog();
+    const state = fakeState({ pending: PEDIATRIA });
+    expect(await runQueueStep({ state, timeout: TIMEOUT })).toBe('not-ready');
+    expect(clicked).not.toHaveBeenCalled();
+    expect(state.takeQueuePending).not.toHaveBeenCalled();
   });
 
   it('fora da fila: não consome a marca', async () => {

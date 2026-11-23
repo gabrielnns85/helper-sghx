@@ -112,10 +112,41 @@ describe('saída manual (Sair)', () => {
   });
 });
 
+describe('saída manual e fila pendente', () => {
+  it('Sair apaga a fila pendente (sair e entrar à mão não leva à fila sozinho)', () => {
+    state.markQueuePending(PEDIATRIA);
+    state.markManualLogout();
+    expect(state.hasQueuePending()).toBe(false);
+  });
+});
+
+describe('já entrou nesta aba', () => {
+  it('marca e lembra entre carregamentos', () => {
+    expect(state.hasEntered()).toBe(false);
+    state.markEntered();
+    expect(createAutoLoginState({ storage, now: () => clock }).hasEntered()).toBe(true);
+  });
+
+  it('entrar zera a marca de "login enviado"', () => {
+    state.markLoginSubmitted();
+    expect(state.hasLoginSubmitted()).toBe(true);
+    state.markEntered();
+    expect(state.hasLoginSubmitted()).toBe(false);
+  });
+
+  it('"login enviado" não expira sozinho: só entrar de verdade ou fechar a aba', () => {
+    state.markLoginSubmitted();
+    clock += 24 * 60 * 60_000;
+    expect(state.hasLoginSubmitted()).toBe(true);
+  });
+});
+
 describe('o que fica no sessionStorage', () => {
   it('nunca guarda usuário nem senha: só horários e códigos', () => {
     state.tryAttempt('login');
     state.markQueuePending(PEDIATRIA);
+    state.markEntered();
+    state.markLoginSubmitted();
     for (const value of Object.values(storage.dump())) {
       expect(value).toMatch(/^[\d{}":,a-zA-Z]+$/);
       expect(value).not.toMatch(/senha|password|user/i);

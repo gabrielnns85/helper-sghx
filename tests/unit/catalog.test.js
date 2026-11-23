@@ -4,11 +4,11 @@ import { KNOWN_QUEUES, KNOWN_UNITS, NO_QUEUE, findQueue, findUnit, isNoQueue, qu
 
 describe('KNOWN_UNITS', () => {
   it('só a UPA Jaçanã (CodFces 28) por enquanto', () => {
-    expect(KNOWN_UNITS).toEqual([{ codFces: 28, name: 'UPA JACANA' }]);
+    expect(KNOWN_UNITS).toEqual([{ codFces: 28, name: 'UPA JACANA', host: 'upajacana.smsprefeiturasp.com.br' }]);
   });
 
   it('findUnit acha pelo CodFces; desconhecido = null', () => {
-    expect(findUnit(28)).toEqual({ codFces: 28, name: 'UPA JACANA' });
+    expect(findUnit(28)).toEqual({ codFces: 28, name: 'UPA JACANA', host: 'upajacana.smsprefeiturasp.com.br' });
     expect(findUnit(2)).toBeNull();
   });
 });
