@@ -4,6 +4,7 @@
 
 const PREFIX = 'helper-sghx:auto-login:';
 const QUEUE_KEY = `${PREFIX}queue`;
+const MANUAL_LOGOUT_KEY = `${PREFIX}manual-logout`;
 
 /** Uma tentativa por etapa nesse intervalo: VIDAAS cancelado ou senha errada não viram loop. */
 export const ATTEMPT_COOLDOWN_MS = 2 * 60_000;
@@ -82,6 +83,25 @@ export function createAutoLoginState({ storage = globalThis.sessionStorage, now 
     },
 
     hasQueuePending: () => peekQueuePending() !== null,
+
+    /** O médico clicou em Sair: nesta aba, nada de entrar sozinho até ele entrar de novo. */
+    markManualLogout() {
+      try {
+        storage.setItem(MANUAL_LOGOUT_KEY, String(now()));
+      } catch (err) {
+        console.warn('[helper-sghx] login automático: não foi possível marcar a saída manual', err.message);
+      }
+    },
+
+    isManualLogout: () => typeof read(MANUAL_LOGOUT_KEY) === 'string',
+
+    clearManualLogout() {
+      try {
+        storage.removeItem(MANUAL_LOGOUT_KEY);
+      } catch {
+        // Sem storage não há marca para apagar.
+      }
+    },
 
     /** Entrega a marca uma vez e apaga. @returns {QueueCodes | null} */
     takeQueuePending() {
